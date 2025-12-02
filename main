@@ -1,0 +1,138 @@
+#include <iostream>
+using namespace std;
+const int GRIDSIZE = 8;
+int gridInfo[GRIDSIZE][GRIDSIZE];
+const int grid_black = 1;
+const int grid_white = -1;
+const int obstacle = 2;
+int currentcolor, rivalcolor;
+bool inMap(int x, int y){ 
+    if (x < 0 || x >= GRIDSIZE || y < 0 || y >= GRIDSIZE){
+        return false;
+    }
+    return true;
+}
+void humanMove() {
+    int x0, y0, x1, y1, x2, y2;
+    while (true) {
+        cout << "Enter your move (startX startY endX endY obstacleX obstacleY): ";
+        cin >> x0 >> y0 >> x1 >> y1 >> x2 >> y2;
+        if (ProcStep(x0, y0, x1, y1, x2, y2, currentcolor, false)) {
+            break;
+        }
+        cout << "Invalid move, try again." << endl;   
+    }
+}
+void aiMove() {
+
+}
+bool ProcStep(int x0, int y0, int x1, int y1, int x2, int y2,
+    int color, bool check_only)
+{
+    if ((!inMap(x0, y0)) || (!inMap(x1, y1)) || (!inMap(x2, y2)))
+        return false;
+    if (gridInfo[x0][y0] != color || gridInfo[x1][y1] != 0)
+        return false;
+    if ((gridInfo[x2][y2] != 0) && !(x2 == x0 && y2 == y0))
+        return false;
+    if (!check_only)
+    {
+        gridInfo[x0][y0] = 0;
+        gridInfo[x1][y1] = color;
+        gridInfo[x2][y2] = obstacle;
+    }
+    return true;
+}
+void initBoard() {
+    memset(gridInfo, 0, sizeof(gridInfo));
+    gridInfo[0][(GRIDSIZE - 1) / 3] = gridInfo[(GRIDSIZE - 1) / 3][0]
+        = gridInfo[GRIDSIZE - 1 - ((GRIDSIZE - 1) / 3)][0]
+        = gridInfo[GRIDSIZE - 1][(GRIDSIZE - 1) / 3] = grid_black;
+    gridInfo[0][GRIDSIZE - 1 - ((GRIDSIZE - 1) / 3)] = gridInfo[(GRIDSIZE - 1) / 3][GRIDSIZE - 1]
+        = gridInfo[GRIDSIZE - 1 - ((GRIDSIZE - 1) / 3)][GRIDSIZE - 1]
+        = gridInfo[GRIDSIZE - 1][GRIDSIZE - 1 - ((GRIDSIZE - 1) / 3)] = grid_white;
+}
+//打印棋盘，白色"○"，黑色"●"，障碍"Δ"。
+void printBoard() {
+    cout << "   0   1   2   3   4   5   6   7 " << endl;
+    cout << " ┌───┬───┬───┬───┬───┬───┬───┬───┐" << endl;
+    for (int j = 0; j < 8; j++) {
+        cout << j;
+        for (int i = 0; i < 8; i++) {
+            cout << "│";
+            switch (gridInfo[i][j]) {
+            case grid_white:cout << " ● "; break;
+            case grid_black:cout << " ○ "; break;
+            case obstacle :cout << " Δ "; break;
+            default:cout << "   "; break;
+            }
+        }
+        cout << "│" << endl;
+        if (j != 7) {
+            cout << " ├───┼───┼───┼───┼───┼───┼───┼───┤" << endl;
+        }
+        else {
+            cout << " └───┴───┴───┴───┴───┴───┴───┴───┘" << endl;
+        }
+    }
+    return;
+}
+
+int main() {
+    int choice;
+    cout << "The Game of The Amazons" << endl;
+    while (1) {
+        cout << "Please select game mode: "<<endl;
+        cout << "1. man vs AI" << endl;
+        cout << "2. man vs man" << endl;
+        cout << "3. AI vs AI" << endl;
+        cout << "4. Save Game" << endl;
+        cout << "5. Load Game" << endl;
+        cout << "6. Quit" << endl;
+        cin >> choice;
+        cout << "You selected ";
+        switch (choice) {
+        case 1:
+            cout << "man vs AI" << endl;
+            cout << "Please choose your color: 1 for black , -1 for white";
+            cin >> currentcolor;
+            while (currentcolor != -1 && currentcolor != 1) {
+                cout << "Invalid choice of color" << endl;
+                cin >> currentcolor;
+            }
+            rivalcolor = -1 * currentcolor;
+            initBoard();
+            printBoard();     
+            while (true) {
+                // 玩家回合
+                humanMove();
+                printBoard();
+                // TODO: 判断胜负
+
+                // AI回合
+                aiMove();
+                printBoard();
+                // TODO: 判断胜负
+            }
+            // Human vs Computer code here
+            break;
+        case 2:
+            // Human vs Human code here
+            break;
+        case 3:
+            // Computer vs Computer code here
+            break;
+        case 4:
+            // Save Game code here
+            break;
+        case 5:
+            // Load Game code here
+            break;
+        case 6:
+            cout << "Goodbye!" << endl;
+            return 0;
+        default:
+            cout << "Invalid input, please try again." << endl;
+        }
+    }
+}
