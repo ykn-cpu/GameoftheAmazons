@@ -2,7 +2,9 @@
 #include<cmath>
 #include<vector>
 #include <cstdlib>
+#include <fstream>
 #include <ctime>
+#include<string>
 using namespace std;
 const int GRIDSIZE = 8;
 int gridInfo[GRIDSIZE][GRIDSIZE];
@@ -11,8 +13,10 @@ const int grid_white = -1;
 const int obstacle = 2;
 int currentcolor, rivalcolor;
 int mycolor; // 人机模式下，玩家执子颜色
-bool inMap(int x, int y){ 
-    if (x < 0 || x >= GRIDSIZE || y < 0 || y >= GRIDSIZE){
+int dx[8] = { -1,-1,-1,0,0,1,1,1 };
+int dy[8] = { -1,0,1,-1,1,-1,0,1 };
+bool inMap(int x, int y) {
+    if (x < 0 || x >= GRIDSIZE || y < 0 || y >= GRIDSIZE) {
         return false;
     }
     return true;
@@ -30,28 +34,25 @@ bool isPathClear(int x0, int y0, int x1, int y1) {
     }
     return true;
 }
-bool legal(int x0, int y0, int x1, int y1, int x2, int y2) {
+bool legal(int x0, int y0, int x1, int y1, int x2, int y2,int color) {
     if (!inMap(x0, y0) || !inMap(x1, y1) || !inMap(x2, y2))return false;
-    if (gridInfo[x1][y1]!=0)return false;
-    if (gridInfo[x0][y0]!=currentcolor)return false;
+    if (gridInfo[x1][y1] != 0)return false;
+    if (gridInfo[x0][y0] != color)return false;
     if (gridInfo[x2][y2] != 0 && !(x2 == x0 && y2 == y0))return false;
     int temp = gridInfo[x0][y0];
     gridInfo[x0][y0] = 0;
     bool path = isPathClear(x0, y0, x1, y1) && isPathClear(x1, y1, x2, y2);
     gridInfo[x0][y0] = temp;
-    if (path)  return true;
-    else return false;
+    return path;
 }
 bool check_win(int color) {
-    int dx[8] = { -1,-1,-1,0,0,1,1,1 };
-    int dy[8] = { 0,0,1,1,-1,0,-1,1 };
     for (int x = 0; x < GRIDSIZE; x++) {
         for (int y = 0; y < GRIDSIZE; y++) {
             if (gridInfo[x][y] == color) {
                 for (int i = 0; i < GRIDSIZE; i++) {
                     for (int step = 1; step < GRIDSIZE; step++) {
-                        int nx = x + dx[i]*step;
-                        int ny = y + dy[i]*step;
+                        int nx = x + dx[i] * step;
+                        int ny = y + dy[i] * step;
                         if (!inMap(nx, ny))break;
                         else if (gridInfo[nx][ny] != 0)break;
                         else {
@@ -61,7 +62,7 @@ bool check_win(int color) {
                                     int ay = ny + dy[adir] * astep;
                                     if (!inMap(ax, ay)) break;
                                     else if (gridInfo[ax][ay] != 0)break;
-                                    if(legal(x, y, nx, ny, ax, ay))return false;
+                                    if (legal(x, y, nx, ny, ax, ay,color))return false;
                                 }
                             }
                         }
@@ -80,8 +81,8 @@ bool check_win(int color) {
 }
 bool ProcStep(int x0, int y0, int x1, int y1, int x2, int y2,
     int color, bool check_only)
-{     
-    if (!legal(x0, y0, x1, y1, x2, y2))return false;
+{
+    if (!legal(x0, y0, x1, y1, x2, y2,color))return false;
     if (!check_only)
     {
         gridInfo[x0][y0] = 0;
@@ -90,11 +91,45 @@ bool ProcStep(int x0, int y0, int x1, int y1, int x2, int y2,
     }
     return true;
 }
+void saveGame(const string& filename) {
+    ofstream fout(filename, ios::binary); // 打开文件，准备写入
+    if (!fout) {
+        cout << "无法打开文件保存！" << endl;
+        return;
+    }
+    fout.write((char*)gridInfo, sizeof(gridInfo)); // 写入棋盘
+    fout.write((char*)&currentcolor, sizeof(currentcolor)); // 写入当前颜色
+    fout.write((char*)&mycolor, sizeof(mycolor));           // 写入玩家颜色
+    fout.close(); // 关闭文件
+    cout << "游戏已保存！" << endl;
+}
+void loadGame(const string& filename) {
+    ifstream fin(filename, ios::binary); // 打开文件，准备读取
+    if (!fin) {
+        cout << "无法打开文件读取！" << endl;
+        return;
+    }
+    fin.read((char*)gridInfo, sizeof(gridInfo)); // 读回棋盘
+    fin.read((char*)&currentcolor, sizeof(currentcolor)); // 读回当前颜色
+    fin.read((char*)&mycolor, sizeof(mycolor));           // 读回玩家颜色
+    fin.close(); // 关闭文件
+    cout << "游戏已读取！" << endl;
+}
 void humanMove() {
     int x0, y0, x1, y1, x2, y2;
+    string firstinput;
     while (true) {
         cout << "Enter your move (startX startY endX endY obstacleX obstacleY): ";
-        cin >> x0 >> y0 >> x1 >> y1 >> x2 >> y2;
+        cin >> firstinput;
+        if (firstinput == "s") {
+            saveGame("amazons.sav");
+            cout << "Game saved. Exiting..." << endl;
+            exit(0); // 直接退出程序
+        }
+        else {
+            x0 = stoi(firstinput);
+            cin >> y0 >> x1 >> y1 >> x2 >> y2;
+        }
         if (ProcStep(x0, y0, x1, y1, x2, y2, currentcolor, false)) {
             break;
         }
@@ -102,29 +137,28 @@ void humanMove() {
     }
     return;
 }
-void aiMove() {
-    struct Move { int x0, y0, x1, y1, x2, y2; };
-    std::vector<Move> moves;
-    int color = rivalcolor; // AI执白
-    int dx[8] = { -1,-1,-1,0,0,1,1,1 };
-    int dy[8] = { 0,1,-1,1,-1,0,1,-1 };
+int mobility(int color) {
+    int cnt = 0;
     for (int x = 0; x < GRIDSIZE; x++) {
         for (int y = 0; y < GRIDSIZE; y++) {
             if (gridInfo[x][y] == color) {
-                for (int dir = 0; dir < 8; ++dir) {
-                    for (int step = 1; step < GRIDSIZE;step++) {
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step < GRIDSIZE; step++) {
                         int nx = x + dx[dir] * step;
                         int ny = y + dy[dir] * step;
                         if (!inMap(nx, ny)) break;
-                        else if (gridInfo[nx][ny] != 0)break;
+                        if (gridInfo[nx][ny] != 0) break;
+                        // 射箭
                         for (int adir = 0; adir < 8; adir++) {
-                            for (int astep = 1; astep < GRIDSIZE;astep++) {
+                            for (int astep = 1; astep < GRIDSIZE; astep++) {
                                 int ax = nx + dx[adir] * astep;
                                 int ay = ny + dy[adir] * astep;
                                 if (!inMap(ax, ay)) break;
-                                else if (gridInfo[ax][ay] != 0)break;
-                                if (legal(x, y, nx, ny, ax, ay)) {
-                                    moves.push_back({ x, y, nx, ny, ax, ay });
+                                if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
+                                // 判断完整合法性
+                                // 这里用当前color，不影响主流程
+                                if (legal(x, y, nx, ny, ax, ay,color)) {
+                                    cnt++;
                                 }
                             }
                         }
@@ -133,8 +167,52 @@ void aiMove() {
             }
         }
     }
-    if (!moves.empty()) {
-        Move m = moves[rand() % moves.size()];
+    return cnt;
+}
+void aiMove() {
+    struct Move { int x0, y0, x1, y1, x2, y2; };
+    vector<Move> bestmoves;
+    int bestscore = -1e9;
+    int backup[GRIDSIZE][GRIDSIZE];
+    int color = currentcolor;
+    for (int x = 0; x < GRIDSIZE; x++) {
+        for (int y = 0; y < GRIDSIZE; y++) {
+            if (gridInfo[x][y] == color) {
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step < GRIDSIZE; step++) {
+                        int nx = x + dx[dir] * step;
+                        int ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny)) break;
+                        else if (gridInfo[nx][ny] != 0) break;
+                        for (int adir = 0; adir < 8; adir++) {
+                            for (int astep = 1; astep < GRIDSIZE; astep++) {
+                                int ax = nx + dx[adir] * astep;
+                                int ay = ny + dy[adir] * astep;
+                                if (!inMap(ax, ay)) break;
+                                else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
+                                if (legal(x, y, nx, ny, ax, ay,color)) {
+                                    memcpy(backup, gridInfo, sizeof(gridInfo));
+                                    ProcStep(x, y, nx, ny, ax, ay, color, false);
+                                    int score = mobility(color) - mobility(-color);
+                                    memcpy(gridInfo, backup, sizeof(gridInfo));
+                                    if (score > bestscore) {
+                                        bestscore = score;
+                                        bestmoves.clear();
+                                        bestmoves.push_back({ x, y, nx, ny, ax, ay });
+                                    }
+                                    else if (score == bestscore) {
+                                        bestmoves.push_back({ x, y, nx, ny, ax, ay });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (!bestmoves.empty()) {
+        Move m = bestmoves[rand() % bestmoves.size()];
         ProcStep(m.x0, m.y0, m.x1, m.y1, m.x2, m.y2, color, false);
         cout << "AI move: " << m.x0 << " " << m.y0 << " " << m.x1 << " " << m.y1 << " " << m.x2 << " " << m.y2 << endl;
     }
@@ -159,7 +237,7 @@ void printBoard() {
             switch (gridInfo[i][j]) {
             case grid_black:cout << " ● "; break;
             case grid_white:cout << " ○ "; break;
-            case obstacle :cout << " Δ "; break;
+            case obstacle:cout << " Δ "; break;
             default:cout << "   "; break;
             }
         }
@@ -178,7 +256,7 @@ int main() {
     int choice;
     cout << "The Game of The Amazons" << endl;
     while (1) {
-        cout << "Please select game mode: "<<endl;
+        cout << "Please select game mode: " << endl;
         cout << "1. man vs AI" << endl;
         cout << "2. man vs man" << endl;
         cout << "3. AI vs AI" << endl;
@@ -197,20 +275,17 @@ int main() {
                 cin >> mycolor;
             }
             currentcolor = mycolor;
-            rivalcolor = -1 * mycolor;
             initBoard();
-            printBoard();     
+            printBoard();
             while (true) {
                 // 玩家回合
                 currentcolor = mycolor;
-                rivalcolor = -1 * mycolor;
                 if (check_win(currentcolor))break;
                 humanMove();
                 printBoard();
-     
+
                 // AI回合
-                currentcolor = -1*mycolor;
-                rivalcolor = mycolor;
+                currentcolor = -1 * mycolor;
                 if (check_win(currentcolor))break;
                 aiMove();
                 printBoard();
@@ -225,10 +300,11 @@ int main() {
             // Computer vs Computer code here
             break;
         case 4:
-            // Save Game code here
+            saveGame("amazons.sav");
             break;
         case 5:
-            // Load Game code here
+            loadGame("amazons.sav");
+            printBoard(); // 读盘后显示棋盘
             break;
         case 6:
             cout << "Goodbye!" << endl;
