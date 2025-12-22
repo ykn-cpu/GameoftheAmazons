@@ -1,0 +1,168 @@
+#include <iostream>
+#include<cmath>
+#include<vector>
+#include <cstdlib>
+#include <ctime>
+#include<string>
+#include<cstring>
+using namespace std;
+const int GRIDSIZE = 8;
+int gridInfo[GRIDSIZE][GRIDSIZE];
+const int grid_black = 1;
+const int grid_white = -1;
+const int obstacle = 2;
+int mycolor;
+bool inMap(int x, int y){ 
+    if (x < 0 || x >= GRIDSIZE || y < 0 || y >= GRIDSIZE){
+        return false;
+    }
+    return true;
+}
+bool isPathClear(int x0, int y0, int x1, int y1) {
+    int dx = x1 - x0, dy = y1 - y0;//起点到终点的位置增量
+    int step_x = (dx == 0) ? 0 : (dx > 0 ? 1 : -1);
+    int step_y = (dy == 0) ? 0 : (dy > 0 ? 1 : -1);//起点到终点的单位步长
+    if (dx != 0 && dy != 0 && abs(dx) != abs(dy)) return false; // 不是直线或斜线
+    int steps = max(abs(dx), abs(dy));//起点到终点走的最多步数
+    for (int i = 1; i < steps; ++i) {
+        int nx = x0 + step_x * i;
+        int ny = y0 + step_y * i;
+        if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) return false;
+    }
+    return true;
+}
+bool legal(int x0, int y0, int x1, int y1, int x2, int y2,int color) {
+    if (!inMap(x0, y0) || !inMap(x1, y1) || !inMap(x2, y2))return false;
+    if (gridInfo[x1][y1]!=0)return false;
+    if (gridInfo[x0][y0]!=color)return false;
+    if (gridInfo[x2][y2] != 0 && !(x2 == x0 && y2 == y0))return false;
+    int temp = gridInfo[x0][y0];
+    gridInfo[x0][y0] = 0;
+    bool path = isPathClear(x0, y0, x1, y1) && isPathClear(x1, y1, x2, y2);
+    gridInfo[x0][y0] = temp;
+    return path;
+}
+int mobility(int color) {
+    int dx[8] = { -1,-1,-1,0,0,1,1,1 };
+    int dy[8] = { 0,0,1,1,-1,0,-1,1 };
+    int cnt = 0;
+    for (int x = 0; x < GRIDSIZE; x++) {
+        for (int y = 0; y < GRIDSIZE; y++) {
+            if (gridInfo[x][y] == color) {
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step < GRIDSIZE; step++) {
+                        int nx = x + dx[dir] * step;
+                        int ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny)) break;
+                        else if (gridInfo[nx][ny] != 0)break;
+                        if (legal(x, y, nx, ny, nx, ny,color)) cnt++;
+                    }
+                }
+            }
+        }
+    }//函数调用结束之前，恢复当前执色
+    return cnt;
+}
+bool ProcStep(int x0, int y0, int x1, int y1, int x2, int y2,
+   int color, bool check_only)
+{     
+    if (!legal(x0, y0, x1, y1, x2, y2, color))return false;
+    if (!check_only)
+    {
+        gridInfo[x0][y0] = 0;
+        gridInfo[x1][y1] = color;
+        gridInfo[x2][y2] = obstacle;
+    }
+    return true;
+}
+void aiMove() {
+    struct Move { int x0, y0, x1, y1, x2, y2; };
+    vector<Move>bestmoves;
+    vector<Move> moves;
+    int bestscore = -1e9;
+    int backup[GRIDSIZE][GRIDSIZE] = {};
+    int dx[8] = { -1,-1,-1,0,0,1,1,1 };
+    int dy[8] = { -1,0,1,-1,1,-1,0,1 };
+    for (int x = 0; x < GRIDSIZE; x++) {
+        for (int y = 0; y < GRIDSIZE; y++) {
+            if (gridInfo[x][y] == mycolor) {
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step < GRIDSIZE;step++) {
+                        int nx = x + dx[dir] * step;
+                        int ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny)) break;
+                        else if (gridInfo[nx][ny] != 0)break;
+                        for (int adir = 0; adir < 8; adir++) {
+                            for (int astep = 1; astep < GRIDSIZE;astep++) {
+                                int ax = nx + dx[adir] * astep;
+                                int ay = ny + dy[adir] * astep;
+                                if (!inMap(ax, ay)) break;
+                                else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y))break;
+                                if (legal(x, y, nx, ny, ax, ay,mycolor)) {
+                                    //mobility贪心算法，选择使得mobility(currentcolor)-mobility(-currentcolor)最大的走法
+                                    memcpy(backup, gridInfo, sizeof(gridInfo));
+                                    ProcStep(x, y, nx, ny, ax, ay, mycolor, false);
+                                    int score = mobility(mycolor) - mobility(-1 * mycolor);
+                                    memcpy(gridInfo, backup, sizeof(gridInfo));
+                                    if (score > bestscore) {
+                                        bestscore = score;
+                                        bestmoves.clear();
+                                        bestmoves.push_back({ x,y,nx,ny,ax,ay});
+                                    }
+                                    else if (score == bestscore) {
+                                        bestmoves.push_back({ x,y,nx,ny,ax,ay });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (!bestmoves.empty()) {
+        Move m = bestmoves[rand() % bestmoves.size()];
+        // 输出时颠倒横纵坐标
+        cout << m.y0 << " " << m.x0 << " " << m.y1 << " " << m.x1 << " " << m.y2 << " " << m.x2 << endl;
+    }
+    else {
+        // 无合法走法时必须输出认输格式
+        cout << "-1 -1 -1 -1 -1 -1" << endl;
+    }
+}
+int main() {
+    srand((unsigned)time(0)); // 只需在main里调用一次即可
+    memset(gridInfo, 0, sizeof(gridInfo));
+    // 黑棋
+    gridInfo[0][2] = grid_black;
+    gridInfo[0][5] = grid_black;
+    gridInfo[2][0] = grid_black;
+    gridInfo[2][7] = grid_black;
+    // 白棋
+    gridInfo[5][0] = grid_white;
+    gridInfo[5][7] = grid_white;
+    gridInfo[7][2] = grid_white;
+    gridInfo[7][5] = grid_white;
+    // 2. 读入回合数
+    int turnID;
+    cin >> turnID;
+    // 3. 还原历史
+    mycolor = grid_white; // 先假设自己是白方
+    for (int i = 0; i < turnID; i++) {
+        int x0, y0, x1, y1, x2, y2;
+        cin >> x0 >> y0 >> x1 >> y1 >> x2 >> y2;
+        // 交换
+        swap(x0, y0); swap(x1, y1); swap(x2, y2);
+        if (i == 0 && x0 == -1)
+            mycolor = grid_black; // 第一回合收到-1，说明我是黑方
+        else
+            ProcStep(x0, y0, x1, y1, x2, y2, -mycolor, false); // 模拟对手落子
+        if (i < turnID - 1) {
+            cin >> x0 >> y0 >> x1 >> y1 >> x2 >> y2;
+            swap(x0, y0); swap(x1, y1); swap(x2, y2);
+            if (x0 >= 0)
+                ProcStep(x0, y0, x1, y1, x2, y2, mycolor, false); // 模拟己方落子
+        }
+    }
+    aiMove();
+}
