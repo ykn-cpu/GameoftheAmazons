@@ -20,7 +20,6 @@ int dy[8] = { -1,0,1,-1,1,-1,0,1 };
 int e = 0;
 // 棋盘左上角坐标和格子大小
 const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;
-
 // 画棋盘
 void drawBoard() {
     setfillcolor(RGB(220, 220, 220));
@@ -105,8 +104,12 @@ bool check_fail (int color) {
                                     int ax = nx + dx[adir] * astep;
                                     int ay = ny + dy[adir] * astep;
                                     if (!inMap(ax, ay)) break;
-                                    else if (gridInfo[ax][ay] != 0)break;
-                                    if (legal(x, y, nx, ny, ax, ay, color))return false;
+                                    else if (gridInfo[ax][ay] != 0 && (!(ax == x && ay == y)))break;
+                                    printf("check: %d %d -> %d %d -> %d %d, gridInfo[nx][ny]=%d, gridInfo[ax][ay]=%d\n", x, y, nx, ny, ax, ay, gridInfo[nx][ny], gridInfo[ax][ay]);
+                                    if (legal(x, y, nx, ny, ax, ay, color)) {
+                                        printf("合法走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);
+                                        return false;
+                                    }
                                 }
                             }
                         }
@@ -161,14 +164,6 @@ void loadGame(const string& filename) {
     MessageBox(GetHWnd(), _T("文件已读取！"), _T("提示"), MB_OK | MB_ICONINFORMATION);
 }
 void humanMove() {
-    if (check_fail(currentcolor)) {
-        e = 1;
-        return;
-    }
-    if (check_fail(-currentcolor)) {
-        e = 1;
-        return;
-    }
     int x0=0, y0=0, x1=0, y1=0, x2=0, y2=0;
     //选棋子
     while (1) {
@@ -278,14 +273,6 @@ int mobility(int color) {
     return cnt;
 }
 void aiMove() {
-    if (check_fail(currentcolor)) {
-        e = 1;
-        return;
-    }
-    if (check_fail(-currentcolor)) {
-        e = 1;
-        return;
-    }
     struct Move { int x0, y0, x1, y1, x2, y2; };
     vector<Move> bestmoves;
     int bestscore = -1e9;
@@ -405,15 +392,14 @@ int main() {
     }
     currentcolor = mycolor;
     while (true) {
-        if (e)break;
-        ExMessage msg;
-        
-            // 玩家回合
+    // 玩家回合
             currentcolor = mycolor;
+            if (check_fail(currentcolor))break;
             humanMove();
             /* printBoard();*/
              // AI回合
             currentcolor = -1 * mycolor;
+            if (check_fail(currentcolor))break;
             aiMove();
             /* printBoard();*/
             
