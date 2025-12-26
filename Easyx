@@ -21,17 +21,25 @@ int e = 0;
 // 棋盘左上角坐标和格子大小
 const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;
 // 画棋盘
-void drawBoard() {
-    setfillcolor(RGB(220, 220, 220));
-    solidrectangle(BOARD_X, BOARD_Y, BOARD_X + GRIDSIZE * CELL_SIZE, BOARD_Y + GRIDSIZE * CELL_SIZE);
-    setlinecolor(BLACK);
-    for (int i = 0; i <= GRIDSIZE; ++i) {
-        line(BOARD_X, BOARD_Y + i * CELL_SIZE, BOARD_X + GRIDSIZE * CELL_SIZE, BOARD_Y + i * CELL_SIZE); // 横线
-        line(BOARD_X + i * CELL_SIZE, BOARD_Y, BOARD_X + i * CELL_SIZE, BOARD_Y + GRIDSIZE * CELL_SIZE); // 竖线
+void drawChessBoard() {
+    COLORREF light = RGB(240, 217, 181); // 浅色
+    COLORREF dark = RGB(181, 136, 99);  // 深色
+    for (int i = 0; i < GRIDSIZE; ++i) {
+        for (int j = 0; j < GRIDSIZE; ++j) {
+            setfillcolor(((i + j) % 2 == 0) ? light : dark);
+            solidrectangle(
+                BOARD_X + j * CELL_SIZE,
+                BOARD_Y + i * CELL_SIZE,
+                BOARD_X + (j + 1) * CELL_SIZE,
+                BOARD_Y + (i + 1) * CELL_SIZE
+            );
+        }
     }
+    // 绘制外边框
     setlinecolor(BLUE);
+    setlinestyle(PS_SOLID, 4);
     rectangle(BOARD_X, BOARD_Y, BOARD_X + GRIDSIZE * CELL_SIZE, BOARD_Y + GRIDSIZE * CELL_SIZE);
-    setlinecolor(BLACK);
+    setlinestyle(PS_SOLID, 1); // 恢复线宽
 }
 
 // 画棋子和障碍
@@ -42,7 +50,7 @@ void drawPieces() {
             int cy = BOARD_Y + i * CELL_SIZE + CELL_SIZE / 2;
             if (gridInfo[i][j] == grid_black) {
                 setfillcolor(BLACK);
-                setlinecolor(WHITE); // 白色边框
+                setlinecolor(BLUE); // 白色边框
                 fillcircle(cx, cy, CELL_SIZE / 2 - 5);
                 setlinecolor(BLACK); // 恢复线色
             }
@@ -52,7 +60,7 @@ void drawPieces() {
                 fillcircle(cx, cy, CELL_SIZE / 2 - 5);
             }
             else if (gridInfo[i][j] == obstacle) {
-                setfillcolor(BLUE);
+                setfillcolor(RED);
                 fillrectangle(cx - 20, cy - 20, cx + 20, cy + 20);
             }
         }
@@ -104,7 +112,7 @@ bool check_fail (int color) {
                                     int ax = nx + dx[adir] * astep;
                                     int ay = ny + dy[adir] * astep;
                                     if (!inMap(ax, ay)) break;
-                                    else if (gridInfo[ax][ay] != 0 && (!(ax == x && ay == y)))break;
+                                    else if (gridInfo[ax][ay] != 0 && (!(ax == x && ay == y)))break;//这里射箭也要允许回到原位置！！！
                                     printf("check: %d %d -> %d %d -> %d %d, gridInfo[nx][ny]=%d, gridInfo[ax][ay]=%d\n", x, y, nx, ny, ax, ay, gridInfo[nx][ny], gridInfo[ax][ay]);
                                     if (legal(x, y, nx, ny, ax, ay, color)) {
                                         printf("合法走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);
@@ -236,7 +244,8 @@ void humanMove() {
         }
     }
     cleardevice();
-    drawBoard();
+   /* drawBoard();*/
+    drawChessBoard();
     drawPieces();
     return;
 }
@@ -318,7 +327,8 @@ void aiMove() {
         Move m = bestmoves[rand() % bestmoves.size()];
         ProcStep(m.x0, m.y0, m.x1, m.y1, m.x2, m.y2, color, false);
         cleardevice();
-        drawBoard();
+   /*     drawBoard();*/
+        drawChessBoard();
         drawPieces();
         stringstream ss;
         ss << "AI move: " << m.x0 << " " << m.y0 << " " << m.x1 << " " << m.y1 << " " << m.x2 << " " << m.y2;
@@ -338,37 +348,13 @@ void initBoard() {
         = gridInfo[GRIDSIZE - 1 - ((GRIDSIZE - 1) / 3)][GRIDSIZE - 1]
         = gridInfo[GRIDSIZE - 1][GRIDSIZE - 1 - ((GRIDSIZE - 1) / 3)] = grid_white;
 }
-////打印棋盘，白色"○"，黑色"●"，障碍"Δ"。
-//void printBoard() {
-//    cout << "   0   1   2   3   4   5   6   7 " << endl;
-//    cout << " ┌───┬───┬───┬───┬───┬───┬───┬───┐" << endl;
-//    for (int i = 0; i < 8; i++) {
-//        cout << i;
-//        for (int j = 0; j < 8; j++) {
-//            cout << "│";
-//            switch (gridInfo[i][j]) {
-//            case grid_black:cout << " ● "; break;
-//            case grid_white:cout << " ○ "; break;
-//            case obstacle:cout << " Δ "; break;
-//            default:cout << "   "; break;
-//            }
-//        }
-//        cout << "│" << endl;
-//        if (i != 7) {
-//            cout << " ├───┼───┼───┼───┼───┼───┼───┼───┤" << endl;
-//        }
-//        else {
-//            cout << " └───┴───┴───┴───┴───┴───┴───┴───┘" << endl;
-//        }
-//    }
-//    return;
-//}
 int main() {
     srand((unsigned)time(0)); // 只需在main里调用一次即可
     initBoard(); 
     initgraph(600, 600); // 你可以根据需要调整窗口大小
     cleardevice();
-    drawBoard();
+   /* drawBoard();*/
+    drawChessBoard();
     drawPieces();
     settextstyle(40, 0, _T("Consolas"));
     outtextxy(100, 200, _T("点击屏幕左侧执黑(●)"));
@@ -396,13 +382,10 @@ int main() {
             currentcolor = mycolor;
             if (check_fail(currentcolor))break;
             humanMove();
-            /* printBoard();*/
              // AI回合
             currentcolor = -1 * mycolor;
             if (check_fail(currentcolor))break;
             aiMove();
-            /* printBoard();*/
-            
     }
     closegraph();
 }
