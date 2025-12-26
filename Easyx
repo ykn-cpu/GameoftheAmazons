@@ -8,6 +8,7 @@
 #include<graphics.h>
 #include<conio.h>
 using namespace std;
+#define EGERGBA(r,g,b,a) ((COLORREF)(((BYTE)(r)|((WORD)((BYTE)(g))<<8))|(((DWORD)(BYTE)(b))<<16)|(((DWORD)(BYTE)(a))<<24)))
 const int GRIDSIZE = 8;
 int gridInfo[GRIDSIZE][GRIDSIZE];
 const int grid_black = 1;
@@ -17,31 +18,58 @@ int currentcolor, rivalcolor;
 int mycolor; // 人机模式下，玩家执子颜色
 int dx[8] = { -1,-1,-1,0,0,1,1,1 };
 int dy[8] = { -1,0,1,-1,1,-1,0,1 };
-int e = 0;
+int hoverRow = -1, hoverCol = -1;
 // 棋盘左上角坐标和格子大小
 const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;
 // 画棋盘
 void drawChessBoard() {
-    COLORREF light = RGB(240, 217, 181); // 浅色
-    COLORREF dark = RGB(181, 136, 99);  // 深色
+    //COLORREF light = RGB(240, 217, 181); // 浅色
+    //COLORREF dark = RGB(181, 136, 99);  // 深色
+    //for (int i = 0; i < GRIDSIZE; ++i) {
+    //    for (int j = 0; j < GRIDSIZE; ++j) {
+    //        setfillcolor(((i + j) % 2 == 0) ? light : dark);
+    //        solidrectangle(
+    //            BOARD_X + j * CELL_SIZE,
+    //            BOARD_Y + i * CELL_SIZE,
+    //            BOARD_X + (j + 1) * CELL_SIZE,
+    //            BOARD_Y + (i + 1) * CELL_SIZE
+    //        );
+    //    }
+    //}
+    COLORREF woodColors[4] = {
+    RGB(222, 184, 135), // 浅棕
+    RGB(205, 133, 63),  // 中棕
+    RGB(210, 180, 140), // 浅黄棕
+    RGB(160, 82, 45)    // 深棕
+    };
     for (int i = 0; i < GRIDSIZE; ++i) {
         for (int j = 0; j < GRIDSIZE; ++j) {
-            setfillcolor(((i + j) % 2 == 0) ? light : dark);
-            solidrectangle(
-                BOARD_X + j * CELL_SIZE,
-                BOARD_Y + i * CELL_SIZE,
-                BOARD_X + (j + 1) * CELL_SIZE,
-                BOARD_Y + (i + 1) * CELL_SIZE
-            );
+            int x1 = BOARD_X + j * CELL_SIZE;
+            int y1 = BOARD_Y + i * CELL_SIZE;
+            int x2 = x1 + CELL_SIZE;
+            int y2 = y1 + CELL_SIZE;
+            // 先画底色
+            setfillcolor(woodColors[(i + j) % 2]);
+            solidrectangle(x1, y1, x2, y2);
+            // 叠加几条椭圆模拟木纹
+            for (int k = 0; k < 3; ++k) {
+                setlinecolor(woodColors[(i + j + k + 1) % 4]);
+                ellipse(x1 + 5 + k * 6, y1 + 5 + k * 6, x2 - 5 - k * 6, y2 - 5 - k * 6);
+            }
         }
     }
     // 绘制外边框
-    setlinecolor(BLUE);
-    setlinestyle(PS_SOLID, 4);
-    rectangle(BOARD_X, BOARD_Y, BOARD_X + GRIDSIZE * CELL_SIZE, BOARD_Y + GRIDSIZE * CELL_SIZE);
-    setlinestyle(PS_SOLID, 1); // 恢复线宽
+    setlinecolor(BLUE); // 边框颜色（深棕色或你喜欢的色）
+    setlinestyle(PS_SOLID, 8);
+roundrect(
+    BOARD_X, BOARD_Y,
+    BOARD_X + GRIDSIZE * CELL_SIZE,
+    BOARD_Y + GRIDSIZE * CELL_SIZE,
+    20, 20 // 圆角半径
+);
+setlinestyle(PS_SOLID, 1); // 恢复线宽
+    setlinecolor(BLACK);
 }
-
 // 画棋子和障碍
 void drawPieces() {
     for (int i = 0; i < GRIDSIZE; ++i) {
@@ -49,19 +77,52 @@ void drawPieces() {
             int cx = BOARD_X + j * CELL_SIZE + CELL_SIZE / 2;
             int cy = BOARD_Y + i * CELL_SIZE + CELL_SIZE / 2;
             if (gridInfo[i][j] == grid_black) {
-                setfillcolor(BLACK);
-                setlinecolor(BLUE); // 白色边框
-                fillcircle(cx, cy, CELL_SIZE / 2 - 5);
-                setlinecolor(BLACK); // 恢复线色
+                if (i == hoverRow && j == hoverCol && gridInfo[i][j] == currentcolor) {
+                    setfillcolor(EGERGBA(255, 255, 0, 128)); //128为透明度，0完全透明，255不透明
+                    solidcircle(cx, cy, CELL_SIZE / 2 - 2);
+                    setlinecolor(RGB(255, 215, 0)); // 金色粗边
+                    setlinestyle(PS_SOLID, 4);
+                    circle(cx, cy, CELL_SIZE / 2 - 3);
+                    setlinestyle(PS_SOLID, 1);
+                    setlinecolor(BLACK);
+                }
+                else {
+                    setlinecolor(BLUE);
+                    setfillcolor(BLACK);
+                    // 棋子边框
+                    setlinestyle(PS_SOLID, 4);      // 边框粗细
+                    circle(cx, cy, CELL_SIZE / 2 - 5);
+                    fillcircle(cx, cy, CELL_SIZE / 2 - 5);
+                    setlinecolor(BLACK);
+                    setlinestyle(PS_SOLID, 1); // 恢复线宽
+                }
             }
             else if (gridInfo[i][j] == grid_white) {
-                setfillcolor(WHITE);
-                setlinecolor(BLACK);
-                fillcircle(cx, cy, CELL_SIZE / 2 - 5);
+                if (i == hoverRow && j == hoverCol && gridInfo[i][j] == currentcolor) {
+                    //setfillcolor(RGB(255, 255, 0)); // 黄色高亮底
+                    //solidcircle(cx, cy, CELL_SIZE / 2 - 2);
+                    setfillcolor(EGERGBA(255, 255, 0, 128)); //128为透明度，0完全透明，255不透明
+                    solidcircle(cx, cy, CELL_SIZE / 2 - 2);
+                    setlinecolor(RGB(255, 215, 0)); // 金色粗边
+                    setlinestyle(PS_SOLID, 4);
+                    circle(cx, cy, CELL_SIZE / 2 - 3);
+                    setlinestyle(PS_SOLID, 1);
+                    setlinecolor(BLACK);
+                }
+                else {
+                    setfillcolor(WHITE);
+                    setlinecolor(BLUE);
+                    setlinestyle(PS_SOLID, 4);      // 边框粗细
+                    circle(cx, cy, CELL_SIZE / 2 - 5);
+                    fillcircle(cx, cy, CELL_SIZE / 2 - 5);
+                    setlinecolor(BLACK);
+                    setlinestyle(PS_SOLID, 1); // 恢复线宽
+                }
             }
             else if (gridInfo[i][j] == obstacle) {
-                setfillcolor(RED);
-                fillrectangle(cx - 20, cy - 20, cx + 20, cy + 20);
+                setfillcolor(BLUE);
+                roundrect(cx - 20, cy - 20, cx + 20, cy + 20,15,15);
+                fillroundrect(cx - 20, cy - 20, cx + 20, cy + 20, 15, 15);
             }
         }
     }
@@ -177,7 +238,27 @@ void humanMove() {
     while (1) {
         ExMessage msg;
         int f = 0;
-        while (peekmessage(&msg, EX_MOUSE)) {
+        while (peekmessage(&msg, EX_MOUSE|EX_KEY)) {
+            if (msg.message == WM_MOUSEMOVE) {
+                int row = (msg.y - BOARD_Y) / CELL_SIZE;
+                int col = (msg.x - BOARD_X) / CELL_SIZE;
+                if (inMap(row, col)&&gridInfo[row][col]==currentcolor) {
+                    hoverRow = row;
+                    hoverCol = col; 
+                    cleardevice();
+                    drawChessBoard();
+                    drawPieces();
+                }
+            }
+            // 新增：右键存盘，ESC结束游戏
+            if (msg.message == WM_RBUTTONDOWN) {
+                saveGame("amazons.sav");
+                MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
+            }
+            if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
+                closegraph();
+                exit(0);
+            }
             if (msg.message == WM_LBUTTONDOWN) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
@@ -191,15 +272,6 @@ void humanMove() {
                     break;
                 }
             }
-            // 新增：右键存盘，ESC结束游戏
-            if (msg.message == WM_RBUTTONDOWN) {
-                saveGame("amazons.sav");
-                MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
-            }
-            if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
-                closegraph();
-                exit(0); 
-            }
         }
         if (f) break;
     }
@@ -207,7 +279,16 @@ void humanMove() {
     while (true) {
         ExMessage msg;
         int f = 0;
-        while (peekmessage(&msg, EX_MOUSE)) {
+        while (peekmessage(&msg, EX_MOUSE | EX_KEY)) {
+            // 新增：右键存盘，ESC结束游戏
+            if (msg.message == WM_RBUTTONDOWN) {
+                saveGame("amazons.sav");
+                MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
+            }
+            if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
+                closegraph();
+                exit(0);
+            }
             if (msg.message == WM_LBUTTONDOWN) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
@@ -226,7 +307,16 @@ void humanMove() {
     while (true) {
         ExMessage msg;
         int f = 0;
-        while (peekmessage(&msg, EX_MOUSE)) {
+        while (peekmessage(&msg, EX_MOUSE | EX_KEY)) {
+            // 新增：右键存盘，ESC结束游戏
+            if (msg.message == WM_RBUTTONDOWN) {
+                saveGame("amazons.sav");
+                MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
+            }
+            if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
+                closegraph();
+                exit(0);
+            }
             if (msg.message == WM_LBUTTONDOWN) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
@@ -244,7 +334,6 @@ void humanMove() {
         }
     }
     cleardevice();
-   /* drawBoard();*/
     drawChessBoard();
     drawPieces();
     return;
@@ -327,7 +416,6 @@ void aiMove() {
         Move m = bestmoves[rand() % bestmoves.size()];
         ProcStep(m.x0, m.y0, m.x1, m.y1, m.x2, m.y2, color, false);
         cleardevice();
-   /*     drawBoard();*/
         drawChessBoard();
         drawPieces();
         stringstream ss;
@@ -352,6 +440,7 @@ int main() {
     srand((unsigned)time(0)); // 只需在main里调用一次即可
     initBoard(); 
     initgraph(600, 600); // 你可以根据需要调整窗口大小
+    setbkcolor(RGB(128, 128, 128));
     cleardevice();
    /* drawBoard();*/
     drawChessBoard();
