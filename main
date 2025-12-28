@@ -61,7 +61,7 @@ bool check_win(int color) {
                                     int ax = nx + dx[adir] * astep;
                                     int ay = ny + dy[adir] * astep;
                                     if (!inMap(ax, ay)) break;
-                                    else if (gridInfo[ax][ay] != 0)break;
+                                    else if (gridInfo[ax][ay] != 0&& (!(ax == x && ay == y)))break;
                                     if (legal(x, y, nx, ny, ax, ay,color))return false;
                                 }
                             }
