@@ -21,37 +21,80 @@ int hoverr = -1, hoverc = -1;//鼠标悬停的行以及列
 vector<vector<int>>legalmove;//所有合法棋子路径
 vector<vector<int>>legalarrow;//所有合法射箭路径
 int destx, desty = 0;
-//待完成：鼠标选择菜单，极大极小搜索
+//update：图形界面鼠标选择菜单
+//待完成：悔棋，极大极小搜索，人类玩家不允许选择死掉的棋子，中途存盘读盘按钮
 // 棋盘左上角坐标和格子大小
-const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;
-const int lowerboundary = BOARD_X + GRIDSIZE * CELL_SIZE;
-const int rightboundary = BOARD_Y + GRIDSIZE * CELL_SIZE;
-void drawMenu() {
-    cleardevice();
-    setbkcolor(RGB(180, 180, 180));
-    settextstyle(36, 0, _T("Consolas"));
-    settextcolor(BLACK);
-
-    int btnW = 300, btnH = 60, startY = 150, gap = 30;
-    const wchar_t* labels[] = { L"新开始", L"存盘", L"读盘", L"结束" };
-    for (int i = 0; i < 4; ++i) {
-        int x1 = (600 - btnW) / 2;
-        int y1 = startY + i * (btnH + gap);
-        int x2 = x1 + btnW;
-        int y2 = y1 + btnH;
-        setfillcolor(RGB(220, 220, 220));
-        solidrectangle(x1, y1, x2, y2);
-        setlinecolor(BLACK);
-        rectangle(x1, y1, x2, y2);
-        int tx = x1 + 40;
-        int ty = y1 + 10;
-        outtextxy(tx, ty, labels[i]);
+const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;//棋盘左上角点的坐标，单个格子边长
+const int lowerboundary = BOARD_X + GRIDSIZE * CELL_SIZE;//棋盘下边界
+const int rightboundary = BOARD_Y + GRIDSIZE * CELL_SIZE;//棋盘右边界
+int hoverbutton = -1;
+vector<wstring> icons{ L"▶", L"📂", L"⏻" };
+struct button {
+    int x, y, w, h;//按钮左上角坐标x,y，宽w，高h
+    wstring text;//按钮的文字
+};
+vector<button>buttons{
+    {180,100,180,50,L"新开始"},
+    {180,180,180,50,L"读盘"},{180,260,180,50,L"退出"}
+};
+void drawmenu(int hoverbutton) {
+    setbkcolor(RGB(128, 128, 128));
+    for (int i = 0; i < buttons.size(); i++) {
+            // 悬停高亮
+            if (i == hoverbutton) {
+                setfillcolor(RGB(220, 220, 100)); // 黄色高亮
+            }
+            else {
+                setfillcolor(RGB(210, 210, 210)); // 普通灰色
+            }
+            roundrect(buttons[i].x, buttons[i].y, buttons[i].x + buttons[i].w, buttons[i].y + buttons[i].h,30,30);
+            fillroundrect(buttons[i].x, buttons[i].y, buttons[i].x + buttons[i].w, buttons[i].y + buttons[i].h, 30, 30);
+            settextstyle(30, 0, _T("微软雅黑"));
+            setbkmode(TRANSPARENT);
+            settextcolor(BLACK);
+            outtextxy(buttons[i].x+40, buttons[i].y+10, buttons[i].text.c_str());
+            outtextxy(buttons[i].x+150, buttons[i].y+10, icons[i].c_str());
+    }
+}
+void drawbackground() {
+    for (int i = 0; i < 600; i += 2) {
+        setfillcolor(RGB(80 + i / 10, 80 + i / 10, 80 + i / 10));
+        solidrectangle(0, i, 600, i + 2);
+    }
+}
+int selectmenu() {
+    drawmenu(hoverbutton);
+    while (1) {
+        ExMessage msg;
+        if (peekmessage(&msg, EX_MOUSE)) {
+            if (msg.message == WM_MOUSEMOVE) {
+                hoverbutton = -1;
+                for (int i = 0; i < buttons.size(); i++) {
+                    if (msg.x >= buttons[i].x && msg.x <= buttons[i].x + 180
+                        && msg.y >= buttons[i].y && msg.y <= buttons[i].y + 50) {
+                        hoverbutton = i;
+                        break;
+                    }
+                }
+                drawmenu(hoverbutton);
+            }
+            else if (msg.message == WM_LBUTTONDOWN) {
+                hoverbutton = -1;
+                for (int i = 0; i < buttons.size(); i++) {
+                    if (msg.x >= buttons[i].x && msg.x <= buttons[i].x + 180
+                        && msg.y >= buttons[i].y && msg.y <= buttons[i].y + 50) {
+                        hoverbutton = i;
+                        return hoverbutton;
+                    }
+                }
+            }
+        }
+       
     }
 }
 void drawChessBoard() {
     int gap = 4; // 格子间隙
     int shadowLayers = 8; // 阴影渐变层数
-    int dotRadius = gap; // 交点高光最大半径，不能大于gap
     // 1. 画棋盘底色
     setfillcolor(RGB(210, 210, 210));
     solidrectangle(BOARD_X, BOARD_Y,
@@ -62,8 +105,8 @@ void drawChessBoard() {
         for (int j = 1; j < GRIDSIZE; j++) {
             int cx = BOARD_X + j * CELL_SIZE;
             int cy = BOARD_Y + i * CELL_SIZE;
-            for (int r = dotRadius; r > 0; r--) {
-                int bright = 255 - (dotRadius - r) * 10;
+            for (int r = gap; r > 0; r--) {
+                int bright = 255 - (gap - r) * 10;
                 setfillcolor(RGB(bright, bright, bright));
                 solidcircle(cx, cy, r);
             }
@@ -178,12 +221,12 @@ void drawPieces() {
             }
             else if (gridInfo[i][j] == grid_white) {
                 // 阴影参数
-                bool isHover = (i == hoverr && j == hoverc &&
+                bool ishover = (i == hoverr && j == hoverc &&
                     gridInfo[i][j] == currentcolor);
                 // 画多层同心圆模拟淡淡的渐变阴影
                 // 画阴影：悬停绿色渐变，否则灰色渐变
                 for (int r = shadowradius; r > shadowradius - 8; --r) {
-                    if (isHover) {
+                    if (ishover) {
                         int g = 255;
                         int base = 180 + (shadowradius - r) * 5;
                         setfillcolor(RGB(base, g, base)); // 亮绿色渐变
@@ -198,7 +241,6 @@ void drawPieces() {
                     setlinecolor(BLACK);
                     circle(cx, cy, pieceradius);//白棋黑边框
                     fillcircle(cx, cy, pieceradius);
-                
             }
             else if (gridInfo[i][j] == obstacle) {
                 for (int r = shadowradius; r > shadowradius - 8; --r) {
@@ -302,7 +344,7 @@ void saveGame(const string& filename) {
     }
     fout.write((char*)gridInfo, sizeof(gridInfo)); // 写入棋盘
     fout.write((char*)&currentcolor, sizeof(currentcolor)); // 写入当前颜色
-    fout.write((char*)&mycolor, sizeof(mycolor));  
+    fout.write((char*)&mycolor, sizeof(mycolor));  //写入玩家颜色
     fout.close(); // 关闭文件
     MessageBox(GetHWnd(), _T("文件已保存！"), _T("提示"), MB_OK | MB_ICONINFORMATION);// 写入玩家颜色
 }
@@ -566,35 +608,59 @@ void initBoard() {
 int main() {
     srand((unsigned)time(0)); // 只需在main里调用一次即可
     initBoard(); 
-    initgraph(600, 600); // 你可以根据需要调整窗口大小
-    setbkcolor(RGB(128, 128, 128));
+    initgraph(600, 600); 
     cleardevice();
-   /* drawBoard();*/
-    drawChessBoard();
-    drawPieces();
-    settextstyle(40, 0, _T("Consolas"));
-    outtextxy(100, 200, _T("点击屏幕左侧执黑(●)"));
-    outtextxy(100, 300, _T("点击右侧执白 (○)"));
-    while (true) {
-        ExMessage msg;
-        if (peekmessage(&msg, EM_MOUSE)) {
-            if (msg.message == WM_LBUTTONDOWN) {
-                if (msg.x < 300) {
-                    mycolor = 1;
-                    MessageBox(GetHWnd(), _T("你选择了黑棋 (●)"), _T("提示"), MB_OK);
-                    break;
-                }
-                else {
-                    mycolor = -1;
-                    MessageBox(GetHWnd(), _T("你选择了白棋 (○)"), _T("提示"), MB_OK);
-                    break;
+    setbkcolor(RGB(128, 128, 128));
+    drawbackground();
+    drawmenu(hoverbutton);
+    while (1) {
+        int x = selectmenu();
+        if (x == 0) {
+            cleardevice();
+            settextstyle(40, 0, _T("微软雅黑"));
+            outtextxy(100, 200, _T("点击屏幕左侧执黑(●)"));
+            outtextxy(100, 300, _T("点击右侧执白 (○)"));
+            while (1) {
+                ExMessage msg;
+                if (peekmessage(&msg, EM_MOUSE)) {
+                    if (msg.message == WM_LBUTTONDOWN) {
+                        if (msg.x < 300) {
+                            mycolor = 1;
+                            MessageBox(GetHWnd(), _T("你选择了黑棋 (●)"), _T("提示"), MB_OK);
+                            currentcolor = mycolor;
+                            cleardevice();
+                            drawChessBoard();
+                            drawPieces();
+                            break;
+                        }
+                        else {
+                            mycolor = -1;
+                            MessageBox(GetHWnd(), _T("你选择了白棋 (○)"), _T("提示"), MB_OK);
+                            currentcolor = mycolor;
+                            cleardevice();
+                            drawChessBoard();
+                            drawPieces();
+                            break;
+                        }
+                    }
                 }
             }
+            break;
+        }
+        else if (x== 1){
+            loadGame("amazons.sav");
+            cleardevice();
+            drawChessBoard();
+            drawPieces();
+            break;
+        }
+        else if (x == 2) {
+            closegraph();
+            exit(0);
         }
     }
-    currentcolor = mycolor;
     while (true) {
-    // 玩家回合
+            // 玩家回合
             currentcolor = mycolor;
             if (check_fail(currentcolor))break;
             humanMove();
