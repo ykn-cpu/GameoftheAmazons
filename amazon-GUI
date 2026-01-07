@@ -17,11 +17,15 @@ int currentcolor, rivalcolor;
 int mycolor; // 人机模式下，玩家执子颜色
 int dx[8] = { -1,-1,-1,0,0,1,1,1 };
 int dy[8] = { -1,0,1,-1,1,-1,0,1 };
-int hoverRow = -1, hoverCol = -1;
+int hoverr = -1, hoverc = -1;//鼠标悬停的行以及列
+vector<vector<int>>legalmove;//所有合法棋子路径
+vector<vector<int>>legalarrow;//所有合法射箭路径
+int destx, desty = 0;
 //待完成：鼠标选择菜单，极大极小搜索
-// 
 // 棋盘左上角坐标和格子大小
 const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;
+const int lowerboundary = BOARD_X + GRIDSIZE * CELL_SIZE;
+const int rightboundary = BOARD_Y + GRIDSIZE * CELL_SIZE;
 void drawMenu() {
     cleardevice();
     setbkcolor(RGB(180, 180, 180));
@@ -48,42 +52,42 @@ void drawChessBoard() {
     int gap = 4; // 格子间隙
     int shadowLayers = 8; // 阴影渐变层数
     int dotRadius = gap; // 交点高光最大半径，不能大于gap
-
     // 1. 画棋盘底色
     setfillcolor(RGB(210, 210, 210));
     solidrectangle(BOARD_X, BOARD_Y,
         BOARD_X + GRIDSIZE * CELL_SIZE,
         BOARD_Y + GRIDSIZE * CELL_SIZE);
-
     // 2. 画交点高光（只画内部交点，且半径不大于gap）
-    for (int i = 1; i < GRIDSIZE; ++i) {
-        for (int j = 1; j < GRIDSIZE; ++j) {
+    for (int i = 1; i < GRIDSIZE; i++) {
+        for (int j = 1; j < GRIDSIZE; j++) {
             int cx = BOARD_X + j * CELL_SIZE;
             int cy = BOARD_Y + i * CELL_SIZE;
-            for (int r = dotRadius; r > 0; --r) {
+            for (int r = dotRadius; r > 0; r--) {
                 int bright = 255 - (dotRadius - r) * 10;
                 setfillcolor(RGB(bright, bright, bright));
                 solidcircle(cx, cy, r);
             }
         }
     }
-
     // 3. 画格子阴影（右下渐变）
-    for (int i = 0; i < GRIDSIZE; ++i) {
-        for (int j = 0; j < GRIDSIZE; ++j) {
+    for (int i = 0; i < GRIDSIZE; i++) {
+        for (int j = 0; j < GRIDSIZE;j++) {
             int x1 = BOARD_X + j * CELL_SIZE + gap;
             int y1 = BOARD_Y + i * CELL_SIZE + gap;
             int x2 = BOARD_X + (j + 1) * CELL_SIZE - gap;
             int y2 = BOARD_Y + (i + 1) * CELL_SIZE - gap;
             // 多层阴影（右下偏移）
-            for (int k = shadowLayers; k > 0; --k) {
+            for (int k = shadowLayers; k > 0; k--) {
                 int alpha = 180 + k * 6; // 由深到浅
-                setfillcolor(RGB(alpha, alpha, alpha));
-                solidrectangle(x1 + k, y1 + k, x2 + k, y2 + k);
+                    int rx1 = x1 + k, ry1 = y1 + k;//阴影举行左上角顶点
+                    int rx2 = min(x2 + k, lowerboundary), ry2 = min(y2 + k, rightboundary);
+                    //阴影矩形右下角顶点
+                    if (rx1 >= lowerboundary || ry1 >= rightboundary) continue; // 跳过超出棋盘的阴影
+                    setfillcolor(RGB(alpha, alpha, alpha));
+                    solidrectangle(rx1, ry1, rx2, ry2);
             }
         }
     }
-
     // 4. 画格子本体（白色，最后画，遮住高光和阴影，只在缝隙处露出）
     for (int i = 0; i < GRIDSIZE; ++i) {
         for (int j = 0; j < GRIDSIZE; ++j) {
@@ -95,6 +99,55 @@ void drawChessBoard() {
             solidrectangle(x1, y1, x2, y2);
         }
     }
+    //覆盖合法路径高亮
+    for (int k = 0; k < legalmove.size(); k++) {
+        int i = legalmove[k][0], j = legalmove[k][1];
+        //// 不高亮选中棋子本身
+        //if (i == hoverr && j == hoverc) continue;
+        int x1 = BOARD_X + j * CELL_SIZE + gap;
+        int y1 = BOARD_Y + i * CELL_SIZE + gap;
+        int x2 = BOARD_X + (j + 1) * CELL_SIZE - gap;
+        int y2 = BOARD_Y + (i + 1) * CELL_SIZE - gap;
+        // 画多层右下偏移渐变阴影
+        int shadowLayers = 8;
+        for (int k = shadowLayers; k > 0; k--) {
+            setfillcolor(RGB(255, 255, 100 + k * 15)); // 渐变黄
+            solidrectangle(x1 + k, y1 + k, x2 + k, y2 + k);
+        }
+        // 最上层高亮
+        setfillcolor(RGB(220, 180, 40));
+        solidrectangle(x1, y1, x2, y2);
+    }
+    for (int k = 0; k < legalarrow.size(); ++k) {
+        int i = legalarrow[k][0], j = legalarrow[k][1];
+        // 选中棋子本身保持黄色
+        if (i == destx && j == desty) {
+            int x1 = BOARD_X + j * CELL_SIZE + gap;
+            int y1 = BOARD_Y + i * CELL_SIZE + gap;
+            int x2 = BOARD_X + (j + 1) * CELL_SIZE - gap;
+            int y2 = BOARD_Y + (i + 1) * CELL_SIZE - gap;
+            int shadowLayers = 8;
+            for (int k = shadowLayers; k > 0; k--) {
+                setfillcolor(RGB(255, 255, 100 + k * 15)); // 渐变黄色
+                solidrectangle(x1 + k, y1 + k, x2 + k, y2 + k);
+            }
+            setfillcolor(RGB(220, 180, 40));
+            solidrectangle(x1, y1, x2, y2);
+            continue;
+
+        }
+        int x1 = BOARD_X + j * CELL_SIZE + gap;
+        int y1 = BOARD_Y + i * CELL_SIZE + gap;
+        int x2 = BOARD_X + (j + 1) * CELL_SIZE - gap;
+        int y2 = BOARD_Y + (i + 1) * CELL_SIZE - gap;
+        int shadowLayers = 8;
+        for (int k = shadowLayers; k > 0; k--) {
+            setfillcolor(RGB(255, 80 + k * 10, 80 + k * 15)); // 渐变红
+            solidrectangle(x1 + k, y1 + k, x2 + k, y2 + k);
+        }
+        setfillcolor(RGB(200, 40, 40));
+        solidrectangle(x1, y1, x2, y2);
+    }
 }// 画棋子和障碍
 void drawPieces() {
     for (int i = 0; i < GRIDSIZE; ++i) {
@@ -104,7 +157,7 @@ void drawPieces() {
             int shadowradius = CELL_SIZE / 2 - 6;
             int pieceradius = CELL_SIZE / 2 - 10;
             if (gridInfo[i][j] == grid_black) {
-                bool isHover = (i == hoverRow && j == hoverCol && 
+                bool isHover = (i == hoverr && j == hoverc && 
                     gridInfo[i][j] == currentcolor);
                 // 画多层同心圆模拟淡淡的渐变阴影
                 // 画阴影：悬停绿色渐变，否则灰色渐变
@@ -125,7 +178,7 @@ void drawPieces() {
             }
             else if (gridInfo[i][j] == grid_white) {
                 // 阴影参数
-                bool isHover = (i == hoverRow && j == hoverCol &&
+                bool isHover = (i == hoverr && j == hoverc &&
                     gridInfo[i][j] == currentcolor);
                 // 画多层同心圆模拟淡淡的渐变阴影
                 // 画阴影：悬停绿色渐变，否则灰色渐变
@@ -268,6 +321,8 @@ void loadGame(const string& filename) {
 }
 void humanMove() {
     int x0=0, y0=0, x1=0, y1=0, x2=0, y2=0;
+    legalmove.clear();
+    legalarrow.clear();
     //选棋子
     while (1) {
         ExMessage msg;
@@ -277,12 +332,14 @@ void humanMove() {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
                 if (inMap(row, col)&&gridInfo[row][col]==currentcolor) {
-                    hoverRow = row;
-                    hoverCol = col; 
+                    hoverr = row;
+                    hoverc = col; 
                     cleardevice();
                     drawChessBoard();
                     drawPieces();
                 }
+                //每次经过合法棋子，更新hoverr和hoverc,调用drawboard，刷新棋盘
+                //这里实现人类鼠标悬停的位置棋子绿色高亮
             }
             // 新增：S键存盘，R键读盘，ESC结束游戏
               // 存盘：按下S键
@@ -305,7 +362,7 @@ void humanMove() {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
                 printf("点击: x=%d y=%d row=%d col=%d inMap=%d gridInfo=%d currentcolor=%d\n",
-                    msg.x, msg.y, row, col, inMap(row, col), inMap(row, col) ? gridInfo[row][col] : -99, currentcolor);
+                msg.x, msg.y, row, col, inMap(row, col), inMap(row, col) ? gridInfo[row][col] : -99, currentcolor);
                 if (inMap(row, col) && gridInfo[row][col] == currentcolor) {
                     printf("选中棋子: row=%d col=%d\n", row, col);
                     x0 = row;
@@ -317,6 +374,17 @@ void humanMove() {
         }
         if (f) break;
     }
+    for (int dir = 0; dir < 8; dir++) {
+        for (int step = 1; step < GRIDSIZE; step++) {
+            int nx = x0 + dx[dir] * step;
+            int ny = y0 + dy[dir] * step;
+            if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
+            legalmove.push_back({ nx, ny });
+        }
+    }
+    cleardevice();
+    drawChessBoard();
+    drawPieces();
     // 选目标格
     while (true) {
         ExMessage msg;
@@ -337,6 +405,8 @@ void humanMove() {
                 if (inMap(row, col) && gridInfo[row][col] == 0&&isPathClear(x0,y0,row,col)) {
                     x1 = row; 
                     y1 = col;
+                    destx = row;
+                    desty = col;
                     f = 1;
                     printf("选中位置: row=%d col=%d\n", row, col);
                     break;
@@ -345,6 +415,20 @@ void humanMove() {
         }
         if (f)break;
     }
+    for (int i = 0; i < 8; i++) {
+        for (int step = 0; step < 8; step++) {
+            int ax = x1 + dx[i] * step;
+            int ay = y1 + dy[i] * step;
+            if (!inMap(ax, ay) || (gridInfo[ax][ay] != 0) && (ax != x0 && ay != y0))break;
+            if (legal(x0, y0, x1, y1, ax, ay, currentcolor)) {
+                legalarrow.push_back({ ax,ay });
+            }
+        }
+    }
+    legalmove.clear();
+    cleardevice();
+    drawChessBoard();
+    drawPieces();
     //选射箭
     while (true) {
         ExMessage msg;
@@ -375,6 +459,7 @@ void humanMove() {
             break;
         }
     }
+    legalarrow.clear();
     cleardevice();
     drawChessBoard();
     drawPieces();
