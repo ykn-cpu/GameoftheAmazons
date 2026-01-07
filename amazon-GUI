@@ -1,3 +1,4 @@
+#include<iostream>
 #include<cmath>
 #include<vector>
 #include <cstdlib>
@@ -20,7 +21,7 @@ int dy[8] = { -1,0,1,-1,1,-1,0,1 };
 int hoverr = -1, hoverc = -1;//鼠标悬停的行以及列
 vector<vector<int>>legalmove;//所有合法棋子路径
 vector<vector<int>>legalarrow;//所有合法射箭路径
-int destx, desty = 0;
+int destx, desty = 0;//记录当前选定的目标棋子位置
 //update：图形界面鼠标选择菜单
 //待完成：悔棋，极大极小搜索，人类玩家不允许选择死掉的棋子，中途存盘读盘按钮
 // 棋盘左上角坐标和格子大小
@@ -28,17 +29,22 @@ const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;//棋盘左上角点的坐�
 const int lowerboundary = BOARD_X + GRIDSIZE * CELL_SIZE;//棋盘下边界
 const int rightboundary = BOARD_Y + GRIDSIZE * CELL_SIZE;//棋盘右边界
 int hoverbutton = -1;
-vector<wstring> icons{ L"▶", L"📂", L"⏻" };
+vector<wstring> icons{ L"▶", L"📂", L"X" };
 struct button {
     int x, y, w, h;//按钮左上角坐标x,y，宽w，高h
     wstring text;//按钮的文字
 };
 vector<button>buttons{
-    {180,100,180,50,L"新开始"},
-    {180,180,180,50,L"读盘"},{180,260,180,50,L"退出"}
+    {180,140,180,50,L"新开始"},
+    {180,220,180,50,L"读盘"},{180,300,180,50,L"退出"}
 };
 void drawmenu(int hoverbutton) {
     setbkcolor(RGB(128, 128, 128));
+    wstring ws = L"主菜单";
+    settextstyle(30, 0, _T("微软雅黑"));
+    setbkmode(TRANSPARENT);
+    settextcolor(BLUE);
+    outtextxy(230,80,ws.c_str());
     for (int i = 0; i < buttons.size(); i++) {
             // 悬停高亮
             if (i == hoverbutton) {
@@ -52,13 +58,13 @@ void drawmenu(int hoverbutton) {
             settextstyle(30, 0, _T("微软雅黑"));
             setbkmode(TRANSPARENT);
             settextcolor(BLACK);
-            outtextxy(buttons[i].x+40, buttons[i].y+10, buttons[i].text.c_str());
-            outtextxy(buttons[i].x+150, buttons[i].y+10, icons[i].c_str());
+            outtextxy(buttons[i].x+50, buttons[i].y+10, buttons[i].text.c_str());
+            outtextxy(buttons[i].x+10, buttons[i].y+10, icons[i].c_str());
     }
 }
 void drawbackground() {
-    for (int i = 0; i < 600; i += 2) {
-        setfillcolor(RGB(80 + i / 10, 80 + i / 10, 80 + i / 10));
+    for (int i =0; i <600; i += 2) {
+        setfillcolor(RGB(80 + (600-i) / 10, 80 + (600-i) / 10, 80 + (600-i) / 10));
         solidrectangle(0, i, 600, i + 2);
     }
 }
@@ -450,7 +456,7 @@ void humanMove() {
                     destx = row;
                     desty = col;
                     f = 1;
-                    printf("选中位置: row=%d col=%d\n", row, col);
+                    cout << "选中位置：row=" << row << " col=" << col << endl;
                     break;
                 }
             }
@@ -492,7 +498,7 @@ void humanMove() {
                     x2 = row;
                     y2 = col;
                     f = 1;
-                    printf("选中射箭: row=%d col=%d\n", row, col);
+                    cout << "选中射箭： row=" << row << " col=" << col << endl;
                     break;
                 }
             }
@@ -539,6 +545,101 @@ int mobility(int color) {
     }
     return cnt;
 }
+//有问题的minimax
+//int maxdepth = 2;
+//int minimax(int color,int alpha, int beta,int depth) {
+//    printf("%d\n", depth);
+//    if (check_fail(color)) return -1e9;
+//    if (check_fail(-color)) return 1e9;
+//    if (depth == maxdepth)return mobility(color) - mobility(-color);
+//    if (color == currentcolor) {
+//        for (int x = 0; x < GRIDSIZE; x++) {
+//            for (int y = 0; y < GRIDSIZE; y++) {
+//                if (gridInfo[x][y] ==color) {
+//                    for (int dir = 0; dir < 8; dir++) {
+//                        for (int step = 1; step <8; step++) {
+//                            int nx = x + dx[dir] * step;
+//                            int ny = y + dy[dir] * step;
+//                            if (!inMap(nx, ny)) break;
+//                            if (gridInfo[nx][ny] != 0) break;
+//                            // 射箭
+//                            for (int adir = 0; adir < 8; adir++) {
+//                                for (int astep = 1; astep < 8; astep++) {
+//                                    int ax = nx + dx[adir] * astep;
+//                                    int ay = ny + dy[adir] * astep;
+//                                    if (!inMap(ax, ay)) break;
+//                                    if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
+//                                    // 判断完整合法性
+//                                    // 这里用当前color，不影响主流程
+//                                    if (legal(x, y, nx, ny, ax, ay, color)) {
+//                                        int backup[GRIDSIZE][GRIDSIZE];
+//                                        memcpy(backup,gridInfo, sizeof(gridInfo));
+//                                        ProcStep(x, y, nx, ny, ax, ay, color,false);
+//                                        int score = minimax(-color, alpha, beta, depth + 1);
+//                                        alpha = max(score, alpha);
+//                                        memcpy(gridInfo, backup, sizeof(backup));
+//                                        if (alpha >= beta)break;
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return alpha;
+//    }
+//    else {
+//        for (int x = 0; x < GRIDSIZE; x++) {
+//            for (int y = 0; y < GRIDSIZE; y++) {
+//                if (gridInfo[x][y] == -color) {
+//                    for (int dir = 0; dir < 8; dir++) {
+//                        for (int step = 1; step < 8; step++) {
+//                            int nx = x + dx[dir] * step;
+//                            int ny = y + dy[dir] * step;
+//                            if (!inMap(nx, ny)) break;
+//                            if (gridInfo[nx][ny] != 0) break;
+//                            // 射箭
+//                            for (int adir = 0; adir < 8; adir++) {
+//                                for (int astep = 1; astep < 8; astep++) {
+//                                    int ax = nx + dx[adir] * astep;
+//                                    int ay = ny + dy[adir] * astep;
+//                                    if (!inMap(ax, ay)) break;
+//                                    if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
+//                                    // 判断完整合法性
+//                                    // 这里用当前color，不影响主流程
+//                                    if (legal(x, y, nx, ny, ax, ay, -color)) {
+//                                        int backup[GRIDSIZE][GRIDSIZE];
+//                                        memcpy(backup, gridInfo, sizeof(gridInfo));
+//                                        ProcStep(x, y, nx, ny, ax, ay, -color, false);
+//                                        int score = minimax(-color, alpha, beta, depth + 1);
+//                                        beta = min(score, beta);
+//                                        memcpy(gridInfo, backup, sizeof(backup));
+//                                        if (beta <= alpha)break;
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return beta;
+//    }
+//    //if(depth=maxdepth)return mylegalmovecount;
+//    // if(alpha>=beta)return;
+//    //if(currentplayer is me){
+//    //     for(my legal move){
+//    // apply move;
+//    // alpha=max(minimax(-s,alpha,beta),alpha);
+//    // }
+//    // else {
+//    // for(opponentlegal move){
+//    // apply move;
+//    // beta=min(beta,minimax(-s,alpha,beta))
+//    // }
+////   }
+//}
 void aiMove() {
     struct Move { int x0, y0, x1, y1, x2, y2; };
     vector<Move> bestmoves;
@@ -565,6 +666,7 @@ void aiMove() {
                                     ProcStep(x, y, nx, ny, ax, ay, color, false);
                                     int score = mobility(color) - mobility(-color);
                                     memcpy(gridInfo, backup, sizeof(gridInfo));
+                                   /* int score = minimax(-color, -1e9,1e9,1);*/
                                     if (score > bestscore) {
                                         bestscore = score;
                                         bestmoves.clear();
@@ -590,7 +692,7 @@ void aiMove() {
         stringstream ss;
         ss << "AI move: " << m.x0 << " " << m.y0 << " " << m.x1 << " " << m.y1 << " " << m.x2 << " " << m.y2;
         string s = ss.str();
-        printf("AI走步：%s\n", ss.str().c_str());
+        cout << "AI走步：" << s << endl;
         wstring ws(s.begin(), s.end());
         outtextxy(0, 0, ws.c_str());
     }
@@ -617,16 +719,20 @@ int main() {
         int x = selectmenu();
         if (x == 0) {
             cleardevice();
+            outtextxy(80,200, icons[0].c_str());
+            outtextxy(80, 300, icons[0].c_str());
             settextstyle(40, 0, _T("微软雅黑"));
-            outtextxy(100, 200, _T("点击屏幕左侧执黑(●)"));
-            outtextxy(100, 300, _T("点击右侧执白 (○)"));
+            wstring ws1 = L"点击屏幕左侧执黑";
+            wstring ws2 =L"点击屏幕右侧执白";
+            outtextxy(100, 200, ws1.c_str());
+            outtextxy(100, 300, ws2.c_str());
             while (1) {
                 ExMessage msg;
                 if (peekmessage(&msg, EM_MOUSE)) {
                     if (msg.message == WM_LBUTTONDOWN) {
                         if (msg.x < 300) {
                             mycolor = 1;
-                            MessageBox(GetHWnd(), _T("你选择了黑棋 (●)"), _T("提示"), MB_OK);
+                            MessageBox(GetHWnd(), _T("你选择了黑棋"), _T("提示"), MB_OK);
                             currentcolor = mycolor;
                             cleardevice();
                             drawChessBoard();
@@ -635,7 +741,7 @@ int main() {
                         }
                         else {
                             mycolor = -1;
-                            MessageBox(GetHWnd(), _T("你选择了白棋 (○)"), _T("提示"), MB_OK);
+                            MessageBox(GetHWnd(), _T("你选择了白棋"), _T("提示"), MB_OK);
                             currentcolor = mycolor;
                             cleardevice();
                             drawChessBoard();
