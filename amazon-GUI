@@ -53,8 +53,10 @@ void drawmenu(int hoverbutton) {
             else {
                 setfillcolor(RGB(210, 210, 210)); // 普通灰色
             }
-            roundrect(buttons[i].x, buttons[i].y, buttons[i].x + buttons[i].w, buttons[i].y + buttons[i].h,30,30);
-            fillroundrect(buttons[i].x, buttons[i].y, buttons[i].x + buttons[i].w, buttons[i].y + buttons[i].h, 30, 30);
+            roundrect(buttons[i].x, buttons[i].y, buttons[i].x + buttons[i].w, 
+                buttons[i].y + buttons[i].h,30,30);
+            fillroundrect(buttons[i].x, buttons[i].y, buttons[i].x + buttons[i].w,
+                buttons[i].y + buttons[i].h, 30, 30);
             settextstyle(30, 0, _T("微软雅黑"));
             setbkmode(TRANSPARENT);
             settextcolor(BLACK);
@@ -284,13 +286,24 @@ bool inMap(int x, int y) {
 }
 bool isPathClear(int x0, int y0, int x1, int y1) {
     int dx = x1 - x0, dy = y1 - y0;//起点到终点的位置增量
-    int step_x = (dx == 0) ? 0 : (dx > 0 ? 1 : -1);
-    int step_y = (dy == 0) ? 0 : (dy > 0 ? 1 : -1);//起点到终点的单位步长
+    int stepx=0;
+    if (dx == 0)stepx = 0;
+    else {
+        if (dx > 0)stepx = 1;
+        else stepx = -1;
+    }
+    int stepy = 0;
+    if (dy == 0)stepy = 0;
+    else {
+        if (dy > 0)stepy = 1;
+        else stepy = -1;
+    }
+    //起点到终点的单位步长
     if (dx != 0 && dy != 0 && abs(dx) != abs(dy)) return false; // 不是直线或斜线
     int steps = max(abs(dx), abs(dy));//起点到终点走的最多步数
-    for (int i = 1; i < steps; ++i) {
-        int nx = x0 + step_x * i;
-        int ny = y0 + step_y * i;
+    for (int i = 1; i < steps; i++ ) {
+        int nx = x0 + stepx * i;
+        int ny = y0 + stepy * i;
         if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) return false;
     }
     return true;
@@ -396,9 +409,9 @@ void humanMove() {
         while (peekmessage(&msg, EX_MOUSE)) {
             if (msg.message == WM_LBUTTONDOWN && (msg.x >= 440) && (msg.x <= 560) && (msg.y >= 630) && (msg.y <= 670)) {
                 saveGame("amazons.sav");
-                MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
             }
-            if (msg.message == WM_LBUTTONDOWN && msg.x>=300&&msg.x<=420&&msg.y>=630&&msg.y<=670) {
+            if (msg.message == WM_LBUTTONDOWN && msg.x>=300&&msg.x<=420
+                &&msg.y>=630&&msg.y<=670) {
                 closegraph();
                 exit(0);
             }
@@ -436,9 +449,10 @@ void humanMove() {
             }*/
             if (msg.message == WM_LBUTTONDOWN) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
-                int col = (msg.x - BOARD_X) / CELL_SIZE;
+                int col = (msg.x - BOARD_X) / CELL_SIZE;//转换坐标
                 printf("点击: x=%d y=%d row=%d col=%d inMap=%d gridInfo=%d currentcolor=%d\n",
                 msg.x, msg.y, row, col, inMap(row, col), inMap(row, col) ? gridInfo[row][col] : -99, currentcolor);
+                //调试输出点击位置，如果点击位置在棋盘外部那么输出-99
                 if (inMap(row, col) && gridInfo[row][col] == currentcolor) {
                     printf("选中棋子: row=%d col=%d\n", row, col);
                     x0 = row;
@@ -479,7 +493,8 @@ void humanMove() {
             //    closegraph();
             //    exit(0);
             //}
-            if (msg.message == WM_LBUTTONDOWN && msg.x >= 300 && msg.x <= 420 && msg.y >= 630 && msg.y <= 670) {
+            if (msg.message == WM_LBUTTONDOWN && msg.x >= 300 
+                && msg.x <= 420 && msg.y >= 630 && msg.y <= 670) {
                 closegraph();
                 exit(0);
             }
@@ -532,7 +547,8 @@ void humanMove() {
                 closegraph();
                 exit(0);
             }*/
-            if (msg.message == WM_LBUTTONDOWN && msg.x >= 300 && msg.x <= 420 && msg.y >= 630 && msg.y <= 670) {
+            if (msg.message == WM_LBUTTONDOWN && msg.x >= 300 && 
+                msg.x <= 420 && msg.y >= 630 && msg.y <= 670) {
                 closegraph();
                 exit(0);
             }
