@@ -1,9 +1,6 @@
 #include<iostream>
 #include<cmath>
 #include<vector>
-#include <cstdlib#include<iostream>
-#include<cmath>
-#include<vector>
 #include <cstdlib>
 #include <fstream>
 #include <ctime>
