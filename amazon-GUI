@@ -624,7 +624,7 @@ int mobility(int color) {
                         if (!inMap(nx, ny)) break;
                         if (gridInfo[nx][ny] != 0) break;
                         cnt++;
-                        // 射箭
+                        //// 射箭
                         //for (int adir = 0; adir < 8; adir++) {
                         //    for (int astep = 1; astep < GRIDSIZE; astep++) {
                         //        int ax = nx + dx[adir] * astep;
@@ -751,11 +751,10 @@ void aiMove() {
                                 if (!inMap(ax, ay)) break;//astep>=1不经过目标位置
                                 else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
                                 if (legal(x, y, nx, ny, ax, ay, color)) {
-                                    /*memcpy(backup, gridInfo, sizeof(gridInfo));
+                                    memcpy(backup, gridInfo, sizeof(gridInfo));
                                     ProcStep(x, y, nx, ny, ax, ay, color, false);
-                                    int score = mobility(color) - mobility(-color);
-                                    memcpy(gridInfo, backup, sizeof(gridInfo));*/
-                                    int score = minimax(-color, -1e9,1e9,1);
+                                    int score = minimax(-color, -1e9, 1e9, 1);
+                                    memcpy(gridInfo, backup, sizeof(gridInfo));
                                     if (score > bestscore) {
                                         bestscore = score;
                                         bestmoves.clear();
