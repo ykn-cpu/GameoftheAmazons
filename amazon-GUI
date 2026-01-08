@@ -14,7 +14,7 @@ int gridInfo[GRIDSIZE][GRIDSIZE];
 const int grid_black = 1;
 const int grid_white = -1;
 const int obstacle = 2;
-int currentcolor, rivalcolor;
+int currentcolor;
 int mycolor; // 人机模式下，玩家执子颜色
 int dx[8] = { -1,-1,-1,0,0,1,1,1 };
 int dy[8] = { -1,0,1,-1,1,-1,0,1 };
@@ -29,7 +29,7 @@ const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;//棋盘左上角点的坐�
 const int lowerboundary = BOARD_X + GRIDSIZE * CELL_SIZE;//棋盘下边界
 const int rightboundary = BOARD_Y + GRIDSIZE * CELL_SIZE;//棋盘右边界
 int hoverbutton = -1;
-vector<wstring> icons{ L"▶", L"📂", L"X" };
+vector<wstring> icons{ L"♻️", L"📂", L"❌" };//三个菜单功能的标识符
 struct button {
     int x, y, w, h;//按钮左上角坐标x,y，宽w，高h
     wstring text;//按钮的文字
@@ -61,6 +61,20 @@ void drawmenu(int hoverbutton) {
             outtextxy(buttons[i].x+50, buttons[i].y+10, buttons[i].text.c_str());
             outtextxy(buttons[i].x+10, buttons[i].y+10, icons[i].c_str());
     }
+}
+void drawstatusbar(bool cansave) {//增加一个参数，表示只有人类未选定或者ai走步完成时刻允许存盘
+    //状态栏x=0,y=650,w=600,h=80
+    setfillcolor(RGB(240, 240, 240));
+    solidrectangle(0, 600, 600, 700);
+    int savex = 440, savey = 630, savew = 120, saveh = 40;
+    int exitx = 300, exity = 630, exitw = 120, exith = 40;
+    setfillcolor(YELLOW);
+    if(cansave)fillroundrect(savex, savey, savew + savex, savey + saveh, 20, 20);
+    fillroundrect(exitx, exity, exitw + exitx, exity + exith, 20, 20);
+    settextstyle(24, 0, _T("微软雅黑"));
+    settextcolor(BLUE);
+    if(cansave)outtextxy(savex+40, savey+10, L"📂存盘");//只有允许存盘时，画出存盘按钮
+    outtextxy(exitx + 40, exity + 10, L"❌退出");
 }
 void drawbackground() {
     for (int i =0; i <600; i += 2) {
@@ -375,7 +389,19 @@ void humanMove() {
     while (1) {
         ExMessage msg;
         int f = 0;
-        while (peekmessage(&msg, EX_MOUSE|EX_KEY)) {
+        // 选棋子前
+        settextstyle(32, 0, _T("微软雅黑"));
+        settextcolor(BLUE); // 深蓝色
+        outtextxy(200, 0, L"请点击棋子");
+        while (peekmessage(&msg, EX_MOUSE)) {
+            if (msg.message == WM_LBUTTONDOWN && (msg.x >= 440) && (msg.x <= 560) && (msg.y >= 630) && (msg.y <= 670)) {
+                saveGame("amazons.sav");
+                MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
+            }
+            if (msg.message == WM_LBUTTONDOWN && msg.x>=300&&msg.x<=420&&msg.y>=630&&msg.y<=670) {
+                closegraph();
+                exit(0);
+            }
             if (msg.message == WM_MOUSEMOVE) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
@@ -385,27 +411,29 @@ void humanMove() {
                     cleardevice();
                     drawChessBoard();
                     drawPieces();
+                    drawstatusbar(true);//棋子尚未选定，允许存盘
                 }
                 //每次经过合法棋子，更新hoverr和hoverc,调用drawboard，刷新棋盘
                 //这里实现人类鼠标悬停的位置棋子绿色高亮
             }
             // 新增：S键存盘，R键读盘，ESC结束游戏
               // 存盘：按下S键
-            if (msg.message == WM_KEYDOWN && (msg.vkcode == 'S' || msg.vkcode == 's')) {
+           /* if (msg.message == WM_LBUTTONDOWN && (msg.x>=440)&&(msg.x<=560)&&(msg.y>=630)&&(msg.y<=670)) {
                 saveGame("amazons.sav");
                 MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
-            }
-            // 读盘：按下R键
-            if (msg.message == WM_KEYDOWN && (msg.vkcode == 'R' || msg.vkcode == 'r')) {
-                loadGame("amazons.sav");
-                cleardevice();
-                drawChessBoard();
-                drawPieces();
-            }
-            if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
+                
+            }*/
+            //// 中途读盘：按下R键
+            //if (msg.message == WM_KEYDOWN && (msg.vkcode == 'R' || msg.vkcode == 'r')) {
+            //    loadGame("amazons.sav");
+            //    cleardevice();
+            //    drawChessBoard();
+            //    drawPieces();
+            //}
+        /*    if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
                 closegraph();
                 exit(0);
-            }
+            }*/
             if (msg.message == WM_LBUTTONDOWN) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
@@ -433,17 +461,25 @@ void humanMove() {
     cleardevice();
     drawChessBoard();
     drawPieces();
+    drawstatusbar(false);//此时已经不允许存盘
     // 选目标格
     while (true) {
         ExMessage msg;
         int f = 0;
-        while (peekmessage(&msg, EX_MOUSE | EX_KEY)) {
-            // 新增：右键存盘，ESC结束游戏
-            if (msg.message == WM_RBUTTONDOWN) {
+        // 选目标格前
+        settextstyle(32, 0, _T("微软雅黑"));
+        settextcolor(BLUE);
+        outtextxy(150, 10, L"请选择目标位置");
+        while (peekmessage(&msg, EX_MOUSE)) {
+           /* if (msg.message == WM_RBUTTONDOWN) {
                 saveGame("amazons.sav");
                 MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
-            }
-            if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
+            }*/
+            //if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
+            //    closegraph();
+            //    exit(0);
+            //}
+            if (msg.message == WM_LBUTTONDOWN && msg.x >= 300 && msg.x <= 420 && msg.y >= 630 && msg.y <= 670) {
                 closegraph();
                 exit(0);
             }
@@ -477,24 +513,35 @@ void humanMove() {
     cleardevice();
     drawChessBoard();
     drawPieces();
+    drawstatusbar(false);
     //选射箭
     while (true) {
+        // 选射箭前
+        settextstyle(32, 0, _T("微软雅黑"));
+        settextcolor(BLUE);
+        outtextxy(150, 10, L"请选择射箭位置");
         ExMessage msg;
         int f = 0;
-        while (peekmessage(&msg, EX_MOUSE | EX_KEY)) {
+        while (peekmessage(&msg, EX_MOUSE)) {
             // 新增：右键存盘，ESC结束游戏
-            if (msg.message == WM_RBUTTONDOWN) {
+           /* if (msg.message == WM_RBUTTONDOWN) {
                 saveGame("amazons.sav");
                 MessageBox(GetHWnd(), _T("游戏已保存！"), _T("提示"), MB_OK);
             }
             if (msg.message == WM_KEYDOWN && msg.vkcode == VK_ESCAPE) {
                 closegraph();
                 exit(0);
+            }*/
+            if (msg.message == WM_LBUTTONDOWN && msg.x >= 300 && msg.x <= 420 && msg.y >= 630 && msg.y <= 670) {
+                closegraph();
+                exit(0);
             }
             if (msg.message == WM_LBUTTONDOWN) {
                 int row = (msg.y - BOARD_Y) / CELL_SIZE;
                 int col = (msg.x - BOARD_X) / CELL_SIZE;
-                if (inMap(row, col) && (gridInfo[row][col] == 0||(row==x0&&col==y0) )&& legal(x0, y0, x1, y1, row, col, currentcolor)&&!(row==x1&&col==y1)) {
+                //人类的合法射箭判别需要排除掉目标点
+                if (inMap(row, col) && (gridInfo[row][col] == 0||(row==x0&&col==y0) )
+                    && legal(x0, y0, x1, y1, row, col, currentcolor)&&!(row==x1&&col==y1)) {
                     x2 = row;
                     y2 = col;
                     f = 1;
@@ -659,7 +706,7 @@ void aiMove() {
                             for (int astep = 1; astep < GRIDSIZE; astep++) {
                                 int ax = nx + dx[adir] * astep;
                                 int ay = ny + dy[adir] * astep;
-                                if (!inMap(ax, ay)) break;
+                                if (!inMap(ax, ay)) break;//astep>=1不经过目标位置
                                 else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
                                 if (legal(x, y, nx, ny, ax, ay, color)) {
                                     memcpy(backup, gridInfo, sizeof(gridInfo));
@@ -689,6 +736,7 @@ void aiMove() {
         cleardevice();
         drawChessBoard();
         drawPieces();
+        drawstatusbar(true);//AI走步完成，画出两个按钮
         stringstream ss;
         ss << "AI move: " << m.x0 << " " << m.y0 << " " << m.x1 << " " << m.y1 << " " << m.x2 << " " << m.y2;
         string s = ss.str();
@@ -710,7 +758,7 @@ void initBoard() {
 int main() {
     srand((unsigned)time(0)); // 只需在main里调用一次即可
     initBoard(); 
-    initgraph(600, 600); 
+    initgraph(600, 700); 
     cleardevice();
     setbkcolor(RGB(128, 128, 128));
     drawbackground();
@@ -719,18 +767,25 @@ int main() {
         int x = selectmenu();
         if (x == 0) {
             cleardevice();
-            outtextxy(80,200, icons[0].c_str());
-            outtextxy(80, 300, icons[0].c_str());
-            settextstyle(40, 0, _T("微软雅黑"));
-            wstring ws1 = L"点击屏幕左侧执黑";
-            wstring ws2 =L"点击屏幕右侧执白";
-            outtextxy(100, 200, ws1.c_str());
-            outtextxy(100, 300, ws2.c_str());
+            cleardevice();
+            // 绘制黑棋按钮
+            setfillcolor(YELLOW);
+            fillroundrect(150, 140, 450, 200, 30, 30);
+            settextcolor(BLACK);
+            settextstyle(36, 0, _T("微软雅黑"));
+            outtextxy(200, 155, L"⚫ 点击这里执黑");
+
+            // 绘制白棋按钮
+            setfillcolor(YELLOW);
+            fillroundrect(150, 240, 450, 300, 30, 30);
+            settextcolor(BLACK);
+            settextstyle(36, 0, _T("微软雅黑"));
+            outtextxy(200, 255, L"⚪ 点击这里执白");
             while (1) {
                 ExMessage msg;
                 if (peekmessage(&msg, EM_MOUSE)) {
                     if (msg.message == WM_LBUTTONDOWN) {
-                        if (msg.x < 300) {
+                        if (msg.x >= 150 && msg.x <= 450 && msg.y >= 140 && msg.y <= 200) {
                             mycolor = 1;
                             MessageBox(GetHWnd(), _T("你选择了黑棋"), _T("提示"), MB_OK);
                             currentcolor = mycolor;
@@ -739,13 +794,14 @@ int main() {
                             drawPieces();
                             break;
                         }
-                        else {
+                        if (msg.x >= 150 && msg.x <= 450 && msg.y >= 240 && msg.y <= 300) {
                             mycolor = -1;
                             MessageBox(GetHWnd(), _T("你选择了白棋"), _T("提示"), MB_OK);
                             currentcolor = mycolor;
                             cleardevice();
                             drawChessBoard();
                             drawPieces();
+                            drawstatusbar(true);
                             break;
                         }
                     }
