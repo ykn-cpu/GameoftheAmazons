@@ -10,8 +10,14 @@
 #include<conio.h>
 #include<algorithm>
 #include <mmsystem.h>
+#include<queue>
+#include<chrono>
 #pragma comment(lib, "winmm.lib")
 using namespace std;
+using namespace chrono;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+steady_clock::time_point startTime;
 const int GRIDSIZE = 8;
 int gridInfo[GRIDSIZE][GRIDSIZE];
 const int grid_black = 1;
@@ -27,7 +33,7 @@ vector<vector<int>>legalarrow;//所有合法射箭路径
 int destx, desty = 0;//记录当前选定的目标棋子位置
 //update：图形界面鼠标选择菜单
 // 棋盘左上角坐标和格子大小
-const int BOARD_X = 50, BOARD_Y = 50, CELL_SIZE = 60;//棋盘左上角点的坐标，单个格子边长
+const int BOARD_X = 50, BOARD_Y = 90, CELL_SIZE = 60;//棋盘左上角点的坐标，单个格子边长
 const int lowerboundary = BOARD_X + GRIDSIZE * CELL_SIZE;//棋盘下边界
 const int rightboundary = BOARD_Y + GRIDSIZE * CELL_SIZE;//棋盘右边界
 int hoverbutton = -1;
@@ -40,7 +46,17 @@ vector<button>buttons{
     {180,140,180,50,L"新开始"},
     {180,220,180,50,L"读盘"},{180,300,180,50,L"退出"}
 };
+void drawbackground() {
+    for (int i = 0; i < 700; i += 2) {
+        int g = 140 + (i * 80) / 700; // 渐变的绿色分量
+        int r = 80 + (i * 80) / 700;
+        int b = 80 + (i * 80) / 700;
+        setfillcolor(RGB(r, g, b));
+        solidrectangle(0, i, 700, i + 2);
+    }
+}
 void drawmenu(int hoverbutton) {
+    drawbackground();
     setbkcolor(RGB(128, 128, 128));
     wstring ws = L"主菜单";
     settextstyle(30, 0, _T("微软雅黑"));
@@ -68,8 +84,9 @@ void drawmenu(int hoverbutton) {
 }
 void drawstatusbar(bool cansave) {//增加一个参数，表示只有人类未选定或者ai走步完成时刻允许存盘
     //状态栏x=0,y=650,w=600,h=80
-    setfillcolor(RGB(240, 240, 240));
-    solidrectangle(0, 600, 600, 700);
+
+    /*setfillcolor(RGB(240, 240, 240));
+    solidrectangle(0, 600, 600, 700);*/
     int savex = 440, savey = 630, savew = 120, saveh = 40;
     int exitx = 300, exity = 630, exitw = 120, exith = 40;
     setfillcolor(YELLOW);
@@ -80,12 +97,12 @@ void drawstatusbar(bool cansave) {//增加一个参数，表示只有人类未�
     if(cansave)outtextxy(savex+40, savey+10, L"📂存盘");//只有允许存盘时，画出存盘按钮
     outtextxy(exitx + 40, exity + 10, L"❌退出");
 }
-void drawbackground() {
-    for (int i =0; i <600; i += 2) {
-        setfillcolor(RGB(80 + (600-i) / 10, 80 + (600-i) / 10, 80 + (600-i) / 10));
-        solidrectangle(0, i, 600, i + 2);
-    }
-}
+//void drawbackground() {
+//    for (int i =0; i <600; i += 2) {
+//        setfillcolor(RGB(80 + (600-i) / 10, 80 + (600-i) / 10, 80 + (600-i) / 10));
+//        solidrectangle(0, i, 600, i + 2);
+//    }
+//}
 int selectmenu() {
     drawmenu(hoverbutton);
     while (1) {
@@ -117,6 +134,7 @@ int selectmenu() {
     }
 }
 void drawChessBoard() {
+    drawbackground();
     int gap = 4; // 格子间隙
     int shadowLayers = 8; // 阴影渐变层数
     // 1. 画棋盘底色
@@ -214,6 +232,27 @@ void drawChessBoard() {
         }
         setfillcolor(RGB(200, 40, 40));
         solidrectangle(x1, y1, x2, y2);
+    }
+    // 绘制上方和左侧的数字坐标（0-7）
+    settextstyle(20, 0, _T("华文行楷")); // 小字体
+    settextcolor(BLACK);
+
+    // 上方列坐标
+    for (int j = 0; j < GRIDSIZE; ++j) {
+        int x = BOARD_X + j * CELL_SIZE + CELL_SIZE / 2 - 5; // 居中微调
+        int y = BOARD_Y - 22; // 比棋盘上边界略高，避免和提示栏冲突
+        wchar_t buf[2];
+        swprintf(buf, 2, L"%d", j);
+        outtextxy(x, y, buf);
+    }
+
+    // 左侧行坐标
+    for (int i = 0; i < GRIDSIZE; ++i) {
+        int x = BOARD_X - 18; // 比棋盘左边界略左
+        int y = BOARD_Y + i * CELL_SIZE + CELL_SIZE / 2 - 8; // 居中微调
+        wchar_t buf[2];
+        swprintf(buf, 2, L"%d", i);
+        outtextxy(x, y, buf);
     }
 }// 画棋子和障碍
 void drawPieces() {
@@ -439,7 +478,7 @@ void humanMove() {
         // 选棋子前
         settextstyle(32, 0, _T("微软雅黑"));
         settextcolor(BLUE); // 深蓝色
-        outtextxy(200, 0, L"请点击棋子");
+        outtextxy(400, 0, L"请点击棋子");
         while (peekmessage(&msg, EX_MOUSE)) {
             if (msg.message == WM_LBUTTONDOWN && (msg.x >= 440) && (msg.x <= 560) && (msg.y >= 630) && (msg.y <= 670)) {
                 saveGame("amazons.sav");
@@ -517,7 +556,7 @@ void humanMove() {
         // 选目标格前
         settextstyle(32, 0, _T("微软雅黑"));
         settextcolor(BLUE);
-        outtextxy(150, 10, L"请选择目标位置");
+        outtextxy(400, 0, L"请选择目标位置");
         while (peekmessage(&msg, EX_MOUSE)) {
            /* if (msg.message == WM_RBUTTONDOWN) {
                 saveGame("amazons.sav");
@@ -568,7 +607,7 @@ void humanMove() {
         // 选射箭前
         settextstyle(32, 0, _T("微软雅黑"));
         settextcolor(BLUE);
-        outtextxy(150, 10, L"请选择射箭位置");
+        outtextxy(400, 0, L"请选择射箭位置");
         ExMessage msg;
         int f = 0;
         while (peekmessage(&msg, EX_MOUSE)) {
@@ -610,64 +649,113 @@ void humanMove() {
     drawPieces();
     return;
 }
-const int n = 10;
-//只计算合法棋子放置位置总数，作为评估函数
-int mobility(int color) {
-    int cnt = 0;
+int fastmobility(int color) {
+    int score = 0;
     for (int x = 0; x < GRIDSIZE; x++) {
         for (int y = 0; y < GRIDSIZE; y++) {
             if (gridInfo[x][y] == color) {
                 for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step < GRIDSIZE; step++) {
-                        int nx = x + dx[dir] * step;
-                        int ny = y + dy[dir] * step;
-                        if (!inMap(nx, ny)) break;
-                        if (gridInfo[nx][ny] != 0) break;
-                        cnt++;
-                        //// 射箭
-                        //for (int adir = 0; adir < 8; adir++) {
-                        //    for (int astep = 1; astep < GRIDSIZE; astep++) {
-                        //        int ax = nx + dx[adir] * astep;
-                        //        int ay = ny + dy[adir] * astep;
-                        //        if (!inMap(ax, ay)) break;
-                        //        if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
-                        //        // 判断完整合法性
-                        //        // 这里用当前color，不影响主流程
-                        //        if (legal(x, y, nx, ny, ax, ay, color)) {
-                        //            cnt++;
-                        //        }
-                        //    }
-                        //}
+                    for (int step = 1; step <= 4; step++) {
+                        int nx = x + dx[dir] * step, ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
+                        score += 5;
                     }
                 }
             }
         }
     }
-    return cnt;
+    return score;
 }
-int maxdepth = 2;
-int minimax(int color,int alpha, int beta,int depth) {
+int blockscore(int color) {
+    int c = 0;
+    for (int x = 0; x < GRIDSIZE; x++) {
+        for (int y = 0; y < GRIDSIZE; y++) {
+            if (gridInfo[x][y] == obstacle) {
+                bool block = false;
+                for (int dir = 0; dir < 8; dir++) {
+                    int nx = x + dx[dir], ny = y + dy[dir];
+                    if (inMap(nx, ny) && gridInfo[nx][ny] == -color) {
+                        block = true;
+                        break;
+                    }
+                }
+                if (block) {
+                    c += 10;
+
+                }
+            }
+        }
+    }
+    return c;
+}
+int evaluate() {
+    int score = 0;
+    for (int x = 0; x < GRIDSIZE; x++) {
+        for (int y = 0; y < GRIDSIZE; y++) {
+            if (gridInfo[x][y] == currentcolor) {
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step <= 4; step++) {
+                        int nx = x + dx[dir] * step, ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
+                        score += 5;
+                    }//每个方向每步+5
+                }
+            }
+            else if (gridInfo[x][y] == -currentcolor) {
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step <= 4; step++) {
+                        int nx = x + dx[dir] * step, ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
+                        score -= 5;
+                    }
+                }
+            }
+            else if (gridInfo[x][y] == obstacle) {
+                bool block = false;
+                for (int dir = 0; dir < 8; dir++) {
+                    int nx = x + dx[dir], ny = y + dy[dir];
+                    if (inMap(nx, ny) && gridInfo[nx][ny] == -currentcolor) {
+                        block = true;
+                        break;
+                    }
+                }
+                if (block) {
+                    score += 10;
+                }
+            }
+        }
+    }
+    return score;
+}
+const int MAX_SEARCH_TIME = 900; // ms
+bool timeOut = false;
+int minimax(int color, int alpha, int beta, int depth, int maxdepth) {
+    if (timeOut) return evaluate();
+    auto now = steady_clock::now();
+    if (duration_cast<milliseconds>(now - startTime).count() >= MAX_SEARCH_TIME) {
+        timeOut = true;
+        return evaluate(); // 或用你的评估函数
+    }
     if (isfail(color))return -1e9;//输的子节点返回极小值
     if (isfail(-color))return 1e9;//赢的子节点返回最大值
-    if (depth == maxdepth)return mobility(color) - mobility(-color);
+    if (depth == maxdepth || timeOut) return evaluate();
     struct Move { int x0, y0, x1, y1, x2, y2; };
     vector<Move>moves;//枚举所有走法存入moves结构体数组
     for (int x = 0; x < GRIDSIZE; x++) {
         for (int y = 0; y < GRIDSIZE; y++) {
             if (gridInfo[x][y] == color) {
                 for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step < 8; step++) {
+                    for (int step = 1; step <= 4; step++) {
                         int nx = x + dx[dir] * step;
                         int ny = y + dy[dir] * step;
                         if (!inMap(nx, ny)) break;
                         if (gridInfo[nx][ny] != 0) break;
                         // 射箭
                         for (int adir = 0; adir < 8; adir++) {
-                            for (int astep = 1; astep < 8; astep++) {
+                            for (int astep = 1; astep <= 4; astep++) {
                                 int ax = nx + dx[adir] * astep;
                                 int ay = ny + dy[adir] * astep;
                                 if (!inMap(ax, ay)) break;
-                                else  if (ax == nx && ay == ny)continue;
                                 else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
                                 // 判断完整合法性
                                 // 这里用当前color，不影响主流程
@@ -681,88 +769,66 @@ int minimax(int color,int alpha, int beta,int depth) {
             }
         }
     }
-    vector<int>scoremoves;
-    scoremoves.clear();
-    for (int i = 0; i < moves.size(); i++) {
-        int backup[GRIDSIZE][GRIDSIZE];
-        memcpy(backup, gridInfo, sizeof(gridInfo));
-        ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2, moves[i].y2, color, false);
-        int score = mobility(color)-mobility(-color); //模拟走法，对所有走法贪心评分
-        scoremoves.push_back(score);
-        memcpy(gridInfo, backup, sizeof(gridInfo));
-    }
-    vector<int> idx(moves.size());
-    for (int i = 0; i < moves.size(); i++) idx[i] = i;
-    sort(idx.begin(), idx.end(), [&](int a, int b) {
-        return scoremoves[a] > scoremoves[b];
-    });
-    //对指标按照贪心分数排序
-    //取前面贪心分数最大的n个，做minimax搜索
     if (color == currentcolor) {
-        for (int i = 0; i < moves.size() && i < n; i++) {
-            int backup[GRIDSIZE][GRIDSIZE];
-            memcpy(backup, gridInfo, sizeof(gridInfo));
-            ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2, 
-                moves[i].y2, color, false);
-            /*printf("AI候选走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);*/
-            int score = minimax(-color, alpha, beta, depth + 1);
-            /* printf("minimax分数: %d\n", score);*/
-            alpha = max(score, alpha);
-            memcpy(gridInfo, backup, sizeof(backup));
-            if (alpha >= beta)break;
-        }
-        return alpha;
-    }
-    else {
-        for (int i = 0; i < moves.size()&&i<n; i++) {
+        for (size_t i = 0; i < moves.size() /*&& i < static_cast<size_t>(n)*/; i++) {
             int backup[GRIDSIZE][GRIDSIZE];
             memcpy(backup, gridInfo, sizeof(gridInfo));
             ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2,
                 moves[i].y2, color, false);
             /*printf("AI候选走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);*/
-            int score = minimax(-color, alpha, beta, depth + 1);
+            int score = minimax(-color, alpha, beta, depth + 1, maxdepth);
             /* printf("minimax分数: %d\n", score);*/
-            beta = max(score, beta);
+            alpha = max(score, alpha);
             memcpy(gridInfo, backup, sizeof(backup));
             if (alpha >= beta)break;
+            if (timeOut)break;
+
+        }
+        return alpha;
+    }
+    else {
+        for (size_t i = 0; i < moves.size() /*&& i < static_cast<size_t>(n)*/; i++) {
+            int backup[GRIDSIZE][GRIDSIZE];
+            memcpy(backup, gridInfo, sizeof(gridInfo));
+            ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2,
+                moves[i].y2, color, false);
+            /*printf("AI候选走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);*/
+            int score = minimax(-color, alpha, beta, depth + 1, maxdepth);
+            /* printf("minimax分数: %d\n", score);*/
+            beta = min(score, beta);
+            memcpy(gridInfo, backup, sizeof(backup));
+            if (alpha >= beta)break;
+            if (timeOut)break;
         }
         return beta;
     }
 }
 void aiMove() {
     struct Move { int x0, y0, x1, y1, x2, y2; };
-    vector<Move> bestmoves;
+    vector<Move>bestmoves;
     int bestscore = -1e9;
     int backup[GRIDSIZE][GRIDSIZE];
-    int color = currentcolor;
+    vector<Move>moves;//枚举所有走法存入moves结构体数组
     for (int x = 0; x < GRIDSIZE; x++) {
         for (int y = 0; y < GRIDSIZE; y++) {
-            if (gridInfo[x][y] == color) {
+            if (gridInfo[x][y] == currentcolor) {
                 for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step < GRIDSIZE; step++) {
+                    for (int step = 1; step <= 4; step++) {
                         int nx = x + dx[dir] * step;
                         int ny = y + dy[dir] * step;
                         if (!inMap(nx, ny)) break;
-                        else if (gridInfo[nx][ny] != 0) break;
+                        if (gridInfo[nx][ny] != 0) break;
+                        // 射箭
                         for (int adir = 0; adir < 8; adir++) {
-                            for (int astep = 1; astep < GRIDSIZE; astep++) {
+                            for (int astep = 1; astep <= 4; astep++) {
                                 int ax = nx + dx[adir] * astep;
                                 int ay = ny + dy[adir] * astep;
-                                if (!inMap(ax, ay)) break;//astep>=1不经过目标位置
+                                if (!inMap(ax, ay)) break;
                                 else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
-                                if (legal(x, y, nx, ny, ax, ay, color)) {
-                                    memcpy(backup, gridInfo, sizeof(gridInfo));
-                                    ProcStep(x, y, nx, ny, ax, ay, color, false);
-                                    int score = minimax(-color, -1e9, 1e9, 1);
-                                    memcpy(gridInfo, backup, sizeof(gridInfo));
-                                    if (score > bestscore) {
-                                        bestscore = score;
-                                        bestmoves.clear();
-                                        bestmoves.push_back({ x, y, nx, ny, ax, ay });
-                                    }
-                                    else if (score == bestscore) {
-                                        bestmoves.push_back({ x, y, nx, ny, ax, ay });
-                                    }
+                                // 判断完整合法性
+                                // 这里用当前color，不影响主流程
+                                if (legal(x, y, nx, ny, ax, ay, currentcolor)) {
+                                    moves.push_back({ x,y,nx,ny,ax,ay });
                                 }
                             }
                         }
@@ -771,21 +837,63 @@ void aiMove() {
             }
         }
     }
-    if (!bestmoves.empty()) {
-        Move m = bestmoves[rand() % bestmoves.size()];
-        ProcStep(m.x0, m.y0, m.x1, m.y1, m.x2, m.y2, color, false);
-        cleardevice();
-        drawChessBoard();
-        drawPieces();
-        drawstatusbar(true);//AI走步完成，画出两个按钮
-        stringstream ss;
-        ss << "AI move: " << m.x0 << " " << m.y0 << " " << m.x1 << " " << m.y1 << " " << m.x2 << " " << m.y2;
-        string s = ss.str();
-        cout << "AI走步：" << s << endl;
-        wstring ws(s.begin(), s.end());
-        outtextxy(0, 0, ws.c_str());
+    // 用mobility差排序
+    sort(moves.begin(), moves.end(), [&](const Move& a, const Move& b) {
+        int backup[GRIDSIZE][GRIDSIZE];
+        memcpy(backup, gridInfo, sizeof(gridInfo));
+        ProcStep(a.x0, a.y0, a.x1, a.y1, a.x2, a.y2, currentcolor, false);
+        int scoreA = fastmobility(currentcolor) - fastmobility(-currentcolor) + 5 * blockscore(currentcolor);
+        memcpy(gridInfo, backup, sizeof(gridInfo));
+        ProcStep(b.x0, b.y0, b.x1, b.y1, b.x2, b.y2, currentcolor, false);
+        int scoreB = fastmobility(currentcolor) - fastmobility(-currentcolor) + 5 * blockscore(currentcolor);
+        memcpy(gridInfo, backup, sizeof(gridInfo));
+        return scoreA > scoreB;
+        });
+    Move lastBestMove = { -1, -1, -1, -1, -1, -1 };
+    for (int depth = 1; depth <= 5; depth++) {
+        if (timeOut)break;
+        bestscore = -1e9;
+        bestmoves.clear();
+        for (size_t i = 0; i < moves.size(); i++) {
+            memcpy(backup, gridInfo, sizeof(gridInfo));
+            ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2, moves[i].y2, currentcolor, false);
+            int score = minimax(-currentcolor, -1e9, 1e9, 1, depth);
+            memcpy(gridInfo, backup, sizeof(gridInfo));
+            if (score > bestscore) {
+                bestscore = score;
+                bestmoves.clear();
+                bestmoves.push_back({ moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2, moves[i].y2
+                    });
+            }
+            else if (score == bestscore) {
+                bestmoves.push_back({ moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2, moves[i].y2 });
+            }
+        }
+        if (!timeOut && !bestmoves.empty()) {
+            lastBestMove = bestmoves[rand() % bestmoves.size()];
+        }
     }
-    return;
+    // 兜底：如果lastBestMove未被更新且moves非空，随机输出一个合法走法
+    if (lastBestMove.x0 == -1 && !moves.empty()) {
+        lastBestMove = moves[rand() % moves.size()];
+    }
+    cout << "AI走步: " << lastBestMove.y0 << " " << lastBestMove.x0 << " "
+        << lastBestMove.y1 << " " << lastBestMove.x1 << " "
+        << lastBestMove.y2 << " " << lastBestMove.x2 << endl;
+    if (lastBestMove.x0 != -1) {
+        ProcStep(lastBestMove.x0, lastBestMove.y0, lastBestMove.x1, lastBestMove.y1, lastBestMove.x2, lastBestMove.y2, currentcolor, false);
+    }
+    cleardevice();
+    drawChessBoard();
+    drawPieces();
+    drawstatusbar(true); // AI走步完成，画出两个按钮
+    settextstyle(32, 0, _T("微软雅黑"));
+    settextcolor(BLUE);
+    wstringstream wss;
+    wss << L"AI走步: " << lastBestMove.x0 << L" " << lastBestMove.y0 << L" "
+        << lastBestMove.x1 << L" " << lastBestMove.y1 << L" "
+        << lastBestMove.x2 << L" " << lastBestMove.y2;
+    outtextxy(50, 0, wss.str().c_str());
 }
 void initBoard() {
     memset(gridInfo, 0, sizeof(gridInfo));
@@ -809,7 +917,8 @@ int main() {
         if (x == 0) {
             PlaySound(_T("GameSelectionSound.wav"), NULL, SND_FILENAME | SND_ASYNC);
             cleardevice();
-            cleardevice();
+            drawbackground();
+
             // 绘制黑棋按钮
             setfillcolor(YELLOW);
             fillroundrect(150, 140, 450, 200, 30, 30);
