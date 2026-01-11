@@ -21,7 +21,8 @@ const int grid_white = -1;
 const int obstacle = 2;
 int mycolor;
 int dx[8] = { -1,-1,-1,0,0,1,1,1 };
-int dy[8] = { 0,0,1,1,-1,0,-1,1 };
+int dy[8] = { 0,-1,1,1,-1,0,-1,1 };
+struct Move { int x0, y0, x1, y1, x2, y2; };
 bool inMap(int x, int y) {
     if (x < 0 || x >= GRIDSIZE || y < 0 || y >= GRIDSIZE) {
         return false;
@@ -52,27 +53,24 @@ bool legal(int x0, int y0, int x1, int y1, int x2, int y2, int color) {
     gridInfo[x0][y0] = temp;
     return path;
 }
-bool isfail(int color) {
+vector<Move> generatemoves(int color) {
+    vector<Move> moves;
     for (int x = 0; x < GRIDSIZE; x++) {
         for (int y = 0; y < GRIDSIZE; y++) {
             if (gridInfo[x][y] == color) {
-                for (int i = 0; i < GRIDSIZE; i++) {
-                    for (int step = 1; step < GRIDSIZE; step++) {
-                        int nx = x + dx[i] * step;
-                        int ny = y + dy[i] * step;
-                        if (!inMap(nx, ny))break;
-                        else if (gridInfo[nx][ny] != 0)break;
-                        else {
-                            for (int adir = 0; adir < 8; adir++) {
-                                for (int astep = 1; astep < GRIDSIZE; astep++) {
-                                    int ax = nx + dx[adir] * astep;
-                                    int ay = ny + dy[adir] * astep;
-                                    if (!inMap(ax, ay)) break;
-                                    else if (ax == nx && ay == ny)continue;
-                                    else if (gridInfo[ax][ay] != 0 && (!(ax == x && ay == y)))break;//这里射箭也要允许回到原位置！！
-                                    if (legal(x, y, nx, ny, ax, ay, color)) {
-                                        return false;
-                                    }
+                for (int dir = 0; dir < 8; dir++) {
+                    for (int step = 1; step <= 4; step++) {
+                        int nx = x + dx[dir] * step;
+                        int ny = y + dy[dir] * step;
+                        if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
+                        for (int adir = 0; adir < 8; adir++) {
+                            for (int astep = 1; astep <= 4; astep++) {
+                                int ax = nx + dx[adir] * astep;
+                                int ay = ny + dy[adir] * astep;
+                                if (!inMap(ax, ay)) break;
+                                if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
+                                if (legal(x, y, nx, ny, ax, ay, color)) {
+                                    moves.push_back({ x, y, nx, ny, ax, ay });
                                 }
                             }
                         }
@@ -81,40 +79,8 @@ bool isfail(int color) {
             }
         }
     }
-    return true;
+    return moves;
 }
-//int mobility(int color) {
-//    int cnt = 0;
-//    for (int x = 0; x < GRIDSIZE; x++) {
-//        for (int y = 0; y < GRIDSIZE; y++) {
-//            if (gridInfo[x][y] == color) {
-//                for (int dir = 0; dir < 8; dir++) {
-//                    for (int step = 1; step < GRIDSIZE; step++) {
-//                        int nx = x + dx[dir] * step;
-//                        int ny = y + dy[dir] * step;
-//                        if (!inMap(nx, ny)) break;
-//                        if (gridInfo[nx][ny] != 0) break;
-//                        // 射箭
-//                        for (int adir = 0; adir < 8; adir++) {
-//                            for (int astep = 1; astep < GRIDSIZE; astep++) {
-//                                int ax = nx + dx[adir] * astep;
-//                                int ay = ny + dy[adir] * astep;
-//                                if (!inMap(ax, ay)) break;
-//                                if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
-//                                // 判断完整合法性
-//                                // 这里用当前color，不影响主流程
-//                                if (legal(x, y, nx, ny, ax, ay, color)) {
-//                                    cnt++;
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//    return cnt;
-//}
 int fastmobility(int color) {
     int score = 0;
     for (int x = 0; x < GRIDSIZE; x++) {
@@ -154,46 +120,6 @@ int blockscore(int color) {
     }
     return c;
 }
-int reachability(int color) {
-    bool vis[GRIDSIZE][GRIDSIZE] = { 0 };
-    queue<pair<int, int>> q;
-    for (int x = 0; x < GRIDSIZE; ++x)
-        for (int y = 0; y < GRIDSIZE; ++y)
-            if (gridInfo[x][y] == color) {
-                q.push({ x, y });
-                vis[x][y] = true;
-            }
-    while (!q.empty()) {
-        auto p = q.front(); q.pop();
-        int x = p.first, y = p.second;
-        for (int d = 0; d < 8; ++d) {
-            for (int step = 1; step < GRIDSIZE; ++step) {
-                int nx = x + dx[d] * step, ny = y + dy[d] * step;
-                if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
-                if (!vis[nx][ny]) {
-                    vis[nx][ny] = true;
-                    q.push({ nx, ny });
-                }
-            }
-        }
-    }
-    int cnt = 0;
-    for (int x = 0; x < GRIDSIZE; ++x)
-        for (int y = 0; y < GRIDSIZE; ++y)
-            if (vis[x][y]) ++cnt;
-    return cnt;
-}
-////我方落子位置空旷度
-//int openness(int x, int y, int range = 2) {
-//    int cnt = 0;
-//    for (int dx_ = -range; dx_ <= range; dx_++) {
-//        for (int dy_ = -range; dy_ <= range; dy_++) {
-//            int nx = x + dx_, ny = y + dy_;
-//            if (inMap(nx, ny) && gridInfo[nx][ny] == 0) cnt++;
-//        }
-//    }
-//    return cnt;
-//}
 bool ProcStep(int x0, int y0, int x1, int y1, int x2, int y2,
     int color, bool check_only)
 {
@@ -212,7 +138,7 @@ int evaluate() {
         for (int y = 0; y < GRIDSIZE; y++) {
             if (gridInfo[x][y] == mycolor) {
                 for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step <= 4; step++) {
+                    for (int step = 1; step <8; step++) {
                         int nx = x + dx[dir] * step, ny = y + dy[dir] * step;
                         if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
                         score += 5;
@@ -221,7 +147,7 @@ int evaluate() {
             }
             else if (gridInfo[x][y] == -mycolor) {
                 for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step <= 4; step++) {
+                    for (int step = 1; step < 8; step++) {
                         int nx = x + dx[dir] * step, ny = y + dy[dir] * step;
                         if (!inMap(nx, ny) || gridInfo[nx][ny] != 0) break;
                         score -= 5;
@@ -245,49 +171,19 @@ int evaluate() {
     }
     return score;
 }
-int n = 30;
-const int MAX_SEARCH_TIME = 800; // ms
+const int MAX_SEARCH_TIME = 950; // ms
 bool timeOut = false;
-int minimax(int color, int alpha, int beta, int depth,int maxdepth) {
+int minimax(int color, int alpha, int beta, int depth, int maxdepth) {
     if (timeOut) return evaluate();
     auto now = steady_clock::now();
     if (duration_cast<milliseconds>(now - startTime).count() >= MAX_SEARCH_TIME) {
         timeOut = true;
         return evaluate(); // 或用你的评估函数
     }
-    if (isfail(color))return -1e9;//输的子节点返回极小值
-    if (isfail(-color))return 1e9;//赢的子节点返回最大值
     if (depth == maxdepth || timeOut) return evaluate();
-    struct Move { int x0, y0, x1, y1, x2, y2; };
     vector<Move>moves;//枚举所有走法存入moves结构体数组
-    for (int x = 0; x < GRIDSIZE; x++) {
-        for (int y = 0; y < GRIDSIZE; y++) {
-            if (gridInfo[x][y] == color) {
-                for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step <= 4; step++) {
-                        int nx = x + dx[dir] * step;
-                        int ny = y + dy[dir] * step;
-                        if (!inMap(nx, ny)) break;
-                        if (gridInfo[nx][ny] != 0) break;
-                        // 射箭
-                        for (int adir = 0; adir < 8; adir++) {
-                            for (int astep = 1; astep <= 4; astep++) {
-                                int ax = nx + dx[adir] * astep;
-                                int ay = ny + dy[adir] * astep;
-                                if (!inMap(ax, ay)) break;
-                                else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
-                                // 判断完整合法性
-                                // 这里用当前color，不影响主流程
-                                if (legal(x, y, nx, ny, ax, ay, color)) {
-                                    moves.push_back({ x,y,nx,ny,ax,ay });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    moves = generatemoves(color);
+    if (moves.empty())return evaluate();
     if (color == mycolor) {
         for (size_t i = 0; i < moves.size() /*&& i < static_cast<size_t>(n)*/; i++) {
             int backup[GRIDSIZE][GRIDSIZE];
@@ -295,7 +191,7 @@ int minimax(int color, int alpha, int beta, int depth,int maxdepth) {
             ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2,
                 moves[i].y2, color, false);
             /*printf("AI候选走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);*/
-            int score = minimax(-color, alpha, beta, depth + 1,maxdepth);
+            int score = minimax(-color, alpha, beta, depth + 1, maxdepth);
             /* printf("minimax分数: %d\n", score);*/
             alpha = max(score, alpha);
             memcpy(gridInfo, backup, sizeof(backup));
@@ -312,7 +208,7 @@ int minimax(int color, int alpha, int beta, int depth,int maxdepth) {
             ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2,
                 moves[i].y2, color, false);
             /*printf("AI候选走法: %d %d -> %d %d -> %d %d\n", x, y, nx, ny, ax, ay);*/
-            int score = minimax(-color, alpha, beta, depth + 1,maxdepth);
+            int score = minimax(-color, alpha, beta, depth + 1, maxdepth);
             /* printf("minimax分数: %d\n", score);*/
             beta = min(score, beta);
             memcpy(gridInfo, backup, sizeof(backup));
@@ -323,48 +219,25 @@ int minimax(int color, int alpha, int beta, int depth,int maxdepth) {
     }
 }
 void aiMove() {
-    struct Move { int x0, y0, x1, y1, x2, y2; };
     vector<Move>bestmoves;
     int bestscore = -1e9;
     int backup[GRIDSIZE][GRIDSIZE];
     vector<Move>moves;//枚举所有走法存入moves结构体数组
-    for (int x = 0; x < GRIDSIZE; x++) {
-        for (int y = 0; y < GRIDSIZE; y++) {
-            if (gridInfo[x][y] == mycolor) {
-                for (int dir = 0; dir < 8; dir++) {
-                    for (int step = 1; step <= 4; step++) {
-                        int nx = x + dx[dir] * step;
-                        int ny = y + dy[dir] * step;
-                        if (!inMap(nx, ny)) break;
-                        if (gridInfo[nx][ny] != 0) break;
-                        // 射箭
-                        for (int adir = 0; adir < 8; adir++) {
-                            for (int astep = 1; astep <= 4; astep++) {
-                                int ax = nx + dx[adir] * astep;
-                                int ay = ny + dy[adir] * astep;
-                                if (!inMap(ax, ay)) break;
-                                else if (gridInfo[ax][ay] != 0 && !(ax == x && ay == y)) break;
-                                // 判断完整合法性
-                                // 这里用当前color，不影响主流程
-                                if (legal(x, y, nx, ny, ax, ay, mycolor)) {
-                                    moves.push_back({ x,y,nx,ny,ax,ay });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    moves = generatemoves(mycolor);
+    // 先判断是否有走法
+    if (moves.empty()) {
+        // 没有走法才认输
+        cout << "-1 -1 -1 -1 -1 -1" << endl;
+        return;
     }
-    // 用mobility差排序
     sort(moves.begin(), moves.end(), [&](const Move& a, const Move& b) {
         int backup[GRIDSIZE][GRIDSIZE];
         memcpy(backup, gridInfo, sizeof(gridInfo));
         ProcStep(a.x0, a.y0, a.x1, a.y1, a.x2, a.y2, mycolor, false);
-        int scoreA = fastmobility(mycolor) - fastmobility(-mycolor) + 5 * blockscore(mycolor);
+        int scoreA = fastmobility(mycolor) - fastmobility(-mycolor) + 3 * blockscore(mycolor);
         memcpy(gridInfo, backup, sizeof(gridInfo));
         ProcStep(b.x0, b.y0, b.x1, b.y1, b.x2, b.y2, mycolor, false);
-        int scoreB = fastmobility(mycolor) - fastmobility(-mycolor) + 5 * blockscore(mycolor);
+        int scoreB = fastmobility(mycolor) - fastmobility(-mycolor) + 3 * blockscore(mycolor);
         memcpy(gridInfo, backup, sizeof(gridInfo));
         return scoreA > scoreB;
         });
@@ -376,7 +249,7 @@ void aiMove() {
         for (size_t i = 0; i < moves.size(); i++) {
             memcpy(backup, gridInfo, sizeof(gridInfo));
             ProcStep(moves[i].x0, moves[i].y0, moves[i].x1, moves[i].y1, moves[i].x2, moves[i].y2, mycolor, false);
-            int score = minimax(-mycolor, -1e9, 1e9, 1,depth);
+            int score = minimax(-mycolor, -1e9, 1e9, 1, depth);
             memcpy(gridInfo, backup, sizeof(gridInfo));
             if (score > bestscore) {
                 bestscore = score;
@@ -389,15 +262,18 @@ void aiMove() {
             }
         }
         if (!timeOut && !bestmoves.empty()) {
-            lastBestMove = bestmoves[rand() % bestmoves.size()];
+            lastBestMove = bestmoves[0];
         }
     }
-        Move m = lastBestMove;
-        // 输出时颠倒横纵坐标
-        cout << m.y0 << " " << m.x0 << " " << m.y1 << " " << m.x1 << " " << m.y2 << " " << m.x2 << endl;
+    // 兜底：如果lastBestMove未被更新且moves非空，随机输出一个合法走法
+    if (lastBestMove.x0 == -1) {
+        lastBestMove = moves[0];
+    }
+    cout << lastBestMove.y0 << " " << lastBestMove.x0 << " "
+        << lastBestMove.y1 << " " << lastBestMove.x1 << " "
+        << lastBestMove.y2 << " " << lastBestMove.x2 << endl;
 }
 int main() {
-    srand((unsigned)time(0)); // 只需在main里调用一次即可
     startTime = steady_clock::now(); // 初始化搜索起始时间
 
     memset(gridInfo, 0, sizeof(gridInfo));
