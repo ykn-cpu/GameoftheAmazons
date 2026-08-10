@@ -315,3 +315,8 @@ int main() {
     }
     system("pause");
 }
+/*
+ * Game of the Amazons - ÑÇÂíÑ·Æå
+ * Author: Kenny (ykn-cpu)
+ * https://github.com/ykn-cpu/GameoftheAmazons
+ */

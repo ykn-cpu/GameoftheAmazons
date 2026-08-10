@@ -368,3 +368,8 @@ int main() {
     }
     aiMove();
 }
+/*
+ * Game of the Amazons - ÑÇÂíÑ·Æå
+ * Author: ykn-cpu
+ * https://github.com/ykn-cpu/GameoftheAmazons
+ */
