@@ -4,10 +4,10 @@
 
 | 阶段 | 文件 | 目标 | AI 方案 |
 |------|------|------|---------|
-| 1 | `src/console/main.cpp` | 满足作业基本要求（框架来自助教） | 机动性贪心 |
-| 2 | `src/bot/bot.cpp` | Botzone 平台对战 | Minimax + α-β 全栈 |
-| 3 | `src/gui/v1_basic.cpp` | 探索 EasyX GUI（中间备份） | 简易启发式 |
-| 4 | `src/gui/main.cpp` | 最终 GUI 交付 | 复用阶段 2 的最强 AI |
+| 1 | `src/console/main.cpp` | 满足作业基本要求（框架来自助教） | 随机走子 |
+| 2 | `src/bot/bot.cpp` | Botzone 平台对战 | Minimax + α-β 剪枝 |
+| 3 | `src/gui/v1_basic.cpp` | 探索 EasyX GUI（中间备份） | 启发式贪心 |
+| 4 | `src/gui/main.cpp` | 最终 GUI 交付 | 复用阶段 2 的bot |
 
 ---
 
@@ -21,7 +21,9 @@
   2  = 障碍 (obstacle)
 ```
 
-方向数组：8 个方向（上下左右 + 四对角线）。注：棋盘坐标系与 Botzone 官方不同，横纵坐标恰好颠倒，需在 Botzone 版中 swap 转换。
+方向数组：8 个方向（上下左右 + 四对角线）。
+
+注：棋盘坐标系与 Botzone 官方不同，横纵坐标恰好颠倒，需在 Botzone 版中 swap 转换。
 
 ---
 
@@ -121,4 +123,3 @@ score = fastMobility_diff × 1 + blockScore × 2 + territory_score × 7
 ## 参考文献
 
 1. Amazons: Botzone wiki — https://wiki.botzone.org.cn/index.php?title=Amazons
-2. Lieberum J. *An evaluation function for the game of amazons.* Theoretical Computer Science, 2004, 349(2):230-244.
