@@ -39,10 +39,10 @@
 
 | 文件 | 阶段 | 界面 | AI 水平 |
 |------|------|------|---------|
-| `src/console/main.cpp` | 入门 | 字符终端 | 启发式简单贪心 |
+| `src/console/main.cpp` | 入门 | 字符终端 | 随机走子 |
 | `src/bot/bot.cpp` | AI 调参 | 标准输入输出 | Minimax + α-β + 迭代加深 + BFS 领地评估 |
-| `src/gui/v1_basic.cpp` | GUI 探索 | EasyX 木纹棋盘 | 简易启发式 |
-| `src/gui/main.cpp` | 最终交付 | EasyX 渐变阴影 | 同 Botzone |
+| `src/gui/v1_basic.cpp` | GUI 探索 | EasyX 木纹棋盘 | 启发式贪心 |
+| `src/gui/main.cpp` | 最终交付 | EasyX 渐变阴影 | 复用 bot |
 
 ---
 
