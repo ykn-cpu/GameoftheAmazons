@@ -317,6 +317,6 @@ int main() {
 }
 /*
  * Game of the Amazons - ÑÇÂíÑ·Æå
- * Author: Kenny (ykn-cpu)
+ * Author: ykn-cpu
  * https://github.com/ykn-cpu/GameoftheAmazons
  */

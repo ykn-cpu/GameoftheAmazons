@@ -942,6 +942,6 @@ int main() {
 }
 /*
  * Game of the Amazons - 亚马逊棋
- * Author: Kenny (ykn-cpu)
+ * Author: ykn-cpu
  * https://github.com/ykn-cpu/GameoftheAmazons
  */
